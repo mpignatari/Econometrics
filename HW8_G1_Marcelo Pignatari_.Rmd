@@ -1,0 +1,114 @@
+---
+title: "HW 8 - Multiple Regression Model - OLS Asymptotics"
+author: "Marcelo Pignatari"
+date: "11/02/2021"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+\tableofcontents
+
+
+\newpage
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+```
+
+
+```{r include=FALSE}
+library(wooldridge)
+library(stargazer)
+library(dplyr)
+library(car)
+library(ggplot2)
+```
+
+# Problems
+
+## Question 1
+
+As risktol should be positively correlated with pctstck (higher tolerance for risk, higher investment in stock market), so $\beta_2>0$ and $\tilde{\beta_1}$ has a positive inconsistency.
+
+Since $plim\tilde{\beta_1}=\beta_1+\beta_2\delta_1$, 
+As $\beta_2>0$ and $\delta_1>0$ → $plim\tilde{\beta_1}= \beta_1 + \beta_2\delta_1>\beta_1$.
+
+## Question 2
+
+### (i)
+
+```{r}
+data(wage1)
+mrm1<-lm(wage~educ+exper+tenure,wage1)
+#stargazer(mrm1,type = "text")
+res1<-residuals(mrm1)
+hist(res1)
+
+```
+
+
+### (ii)
+
+```{r}
+mrm2<-lm(log(wage)~educ+exper+tenure,wage1)
+stargazer(mrm2,type = "text")
+res2<-residuals(mrm2)
+hist(res2)
+lines(density(res2))
+```
+
+### (iii)
+
+The residuals of the log-level mode seem to have a distribution closer to normal. So MLR 6 is closer to being satisfied on this model.  Level-level is more right skewed and has more residuals far from the mean. 
+
+## Question 3
+
+### (i)
+
+```{r}
+data(econmath)
+head(econmath)
+range(econmath$score)
+e<-filter(econmath, !is.na(econmath$actmth))
+range(e$scor)
+range(econmath,na.rm = T)
+```
+
+The smallest value is 19.53 the largest value is 98.44.  The smallest value in the sample is 20.31, the largest value is 98.44.
+
+*I'm a little confused by this question, if the second question is what is the range of values in the entire database the answer is 0 to 98.44.
+
+### (ii)
+
+```{r}
+mrm2<-lm(score~colgpa+actmth+acteng,econmath)
+stargazer(mrm1,mrm2,type = "text")
+varb<-summary(mrm1)$coefficients[,2]
+
+```
+
+MLR6 is not holding for the error term because the variable score is limited to the interval [0,100] and a normally distributed random variable cannot have limits. If the dependent variable is not normallt distributed, a linear combination of the dependent variable (i.e. the error terms) can not be normally distributed either.
+
+However, with a large sample size we can rely on the assymptotics properties of the estimate bt the central limit theorem. Then, in this case, for n=814 we can evaluate $H_0:\beta_3=0$.
+
+```{r}
+hist(resid(mrm2),freq=F)
+
+
+```
+
+
+
+### (iii) 
+
+
+
+```{r}
+summary(mrm2)
+
+
+```
+
+The p-value associated with $H_0:\beta_3=0$ is 0.641, the t-stat is 0.466 . We can defend this findings arguing that besides the fact that the error seems not have a normal distribution, the sample has a large number of obervations. Therefore we can assume that the coefficients have consistency and by this we can rely on the p-value.

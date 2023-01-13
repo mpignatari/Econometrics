@@ -1,0 +1,237 @@
+---
+title: "HW 7 - Multiple Regression Model - Inference"
+author: "Marcelo Pignatari"
+date: "10/29/2021"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+\tableofcontents
+
+
+\newpage
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+```
+
+
+```{r include=FALSE}
+library(wooldridge)
+library(stargazer)
+library(dplyr)
+library(car)
+library(ggplot2)
+```
+
+# Problems
+
+## Question 1
+
+(i) and (iii). Heteroskedeasticity is the violation of MLR assumption 5, then the variance of $\hat{b}$ will be biased, this prevents a definition of a probability distribution of beta, i.e any inference about the population linear estimator.    Omitting an important explanatory variable is the violation of MLR assumption 4 and  causes $\hat{beta}$ to be biased and also precludes the establishment of a reliable probability distribution of the parameters. Overall, the statistics won't have a t distribution. Regarding (ii), the correlation between two independents variables is not an impediment, given that the correlation is not equal to 1.
+
+## Question 2
+
+### (i)
+
+$$ H_0: \beta_3=0$$
+$$ H_1: \beta_3\neq0$$
+
+### (ii)
+
+$\beta_1>0\,and\,\beta_2>0$. It expected that most populated and richer cities has highest rent rates.
+
+### (iii)
+
+The correct statement is: "A 10% increase in population is associated with about 0.66% increase in rent".
+
+### (iv)
+
+As t-stat = 56/17 = **`r 56/17`** > 3, we already have an ideia that we can reject $H_0$, because the tstat of $\alpha$=1%(critical value) is **`r qt(0.995,60)`**. But doing the right calculations, with a df=64-3-1=60
+```{r}
+
+```
+
+
+## Question 3
+
+### (i)
+
+The degrees of freedom is n-k-1, when n is the number of observation and k the number of explanatory variables in the model. In the first regression, we have only one explanatory variable, so the degree of freedom is $353-1-1=351$. In the second regression we have two explanatory variables wich implies $353-2-1=350$ degrees of freedom.   
+
+The SER is smaller in the second regression than the first because when an extra relevant explanatory variable is added in the model the standard error of regression $\hat{\sigma}$ is smaller. By Venn diagram you can observe clearly this relation. 
+
+### (ii)
+
+Yes, make sense the positive correlation. Because is expected that more time playing in the major league (with the best players and in the most high performance training) makes the players improve their skills.
+
+
+```{r}
+VIF1<-1/(1-(0.487)^2)
+VIF1
+```
+
+Since $R^2=(correlation\;coefficient)^2$ and $VIF=1/(1-R_{j}^{2})$, the variance inflation factor for the slope coefficients is 1.31. I would say that this is a small collinearity, because the VIF is close to 1 and 2. A VIF close to 4 and 5 can be qualified as moderate. A high collinearity is when VIF is closer to 10. 
+
+### (iii)
+
+
+The standard error for the coefficient of years in multiple regression is lower than its counterpart in the simple regression because controlling for more variables in this case is making the reduction in $\hat{\sigma}$ dominate the amount of multicolinearity. So in the expression of the standar errors of the regression coefficients $\hat{\sigma}/SST(1-R_{j}^2)$, the reduction in $\hat{\sigma}$ by controling for one more variable is compensating the increasing effect by the denominator caused by an $R_{j}^2$ greater than 1.
+
+
+# Question 4 
+## (i) 
+
+No, by definition $study+sleep+work+leisure=168$. If we change study we MUST change at least another category so that the sum still 168. So it is not possible to hold the other factor fixed when changing study.
+
+## (ii) 
+
+This model violates assumption MLR.3 because we have perfect colinearity, i.e. each explanatory variable is a perfect linear function of the others explanatory variables. 
+
+## (iii)
+
+One way to reformulate is simply drop one of the independent variables, like leisure: $GPA=\beta_0+\beta_1study+\beta_2sleep+\beta_3work+u$. Then we can interpret $\beta_1$ as change in GPA when study increases by one hour and all other factors remain fixed. We can do this by establishing that when study varies and sleep and work was helding fixed, then we must reduced leisure by one hour. Hence we can have a ceteris paribus multiple regression model analysis.
+
+## Computer Exercises
+
+## Question 5 
+
+### (i)
+
+```{r}
+data("meapsingle")
+#head(meapsingle)
+slrm<-lm(math4~pctsgle,meapsingle)
+stargazer(slrm,type="text")
+```
+$$\widehat{math4}=96.770-0.833\,pctsgle$$
+$$n=229, R^2=0.380$$
+The slope coefficient of the model implies that an increase in one percent unit on children not in married-couple family in a zipcode predicts - on average and holding everything else constant - a decrease in 0.83 percent unit satisfatory in 4th grade math. The effect of single parenthood seems large, it is saying that you can observe significant differences in math scores between regions with higher and lower rates of single parenthood. In the literature, it is widely known, but not necessarily the single effect of it its acting. Usually single parenthood families has lower standard of living, i.e. less income as well, that can impact in lower grades. 
+
+### (ii) 
+
+```{r}
+mlrm<-lm(math4~pctsgle+lmedinc+free,meapsingle)
+stargazer(mlrm,type="text")
+```
+
+The coefficient pctsgle increased. This is because it may be negatively correlated with lmedinc (higher family income, less single parenthood percentage) and positively  correlated with free (greater parenthood percentage, greter percent eligible free lunch).Thus, we can conclude that pctsgle coefficient on the single regression model was negatively biased, that's why we have this shift. 
+
+### (iii)
+
+```{r}
+cor(meapsingle$lmedinc,meapsingle$free)
+  
+```
+
+The correlation between lmedinc and free is -0.74. The negative sign was expected because it make sense that regions with higher percent eligible free lunch has lower median family income and vice-versa. I believe the main criteria student free lunch is family income, so besides the sign it is expected that these variables are highly correlated.  
+
+### (iv) 
+
+```{r}
+mlrm1<-lm(math4~pctsgle+lmedinc,meapsingle)
+stargazer(mlrm1,type="text")
+mlrm2<-lm(math4~pctsgle+free,meapsingle)
+stargazer(mlrm2,type="text")
+```
+Not necessarily. Keeping the two variables in the regression even though they are strongly correlated ensures a lower chance of the pctsgle estimator be biased. Being strongly correlated does not imply perfectly correlated and does not violate the MLR.3. However, there is a trade-off regarding the variance of the estimators that may not be significant with the inclusion of both variables. In fact, regressing math4 in only pctsgle and free brings a robust model. The difference between the pctsgle coefficient is not that different from the coefficient with the three variables, furthermore both coefficients are significant (at the 5% prpg and 1% free). Anyway, it's a matter of evaluating the trade-off and the extension of the variance inflation factors. But I would keep the two variables in the model instead of removing lmedinc, because of prioritizing the non-bias of the estimators. The option that I definitely wouldn't do would be to remove the free variable from the model.
+
+### (v)
+
+```{r}
+vif(mlrm)
+```
+The variable pctsgle has the highest VIF (5.74) - against 4.11 of lmedinc and 3.18 of free. I would still with the same opinion (keeping all the variables in the model). Besides the fact pctsgle has the highesst VIF between the independent variables and has a moderate level of VIF, its still an acceptable level.
+
+## Question 6
+
+### (i)
+
+```{r}
+data("htv")
+head(htv)
+class(htv)
+range(htv$educ)
+nrow(htv)
+count(htv,educ)
+summarise(count(htv,educ))
+prop.table(table(htv$educ))
+prop.table(table(htv$educ))[7]
+mean(htv$educ)
+mean(htv$fatheduc)
+mean(htv$motheduc)
+```
+
+The range of educ variable is from 6 to 20 highest grade completed by 1991. 41.62% of men completed twelfth grade but no higher grade. On average men has 13.03 higher level of education, a slightly highest level than their mothers - 12.44 and fathers 12.17 respectively.
+
+
+### (ii)
+
+```{r}
+htv1<-lm(educ~motheduc+fatheduc,htv)
+stargazer(htv1,type="text")
+```
+$$\widehat{educ}=6.964+0.304\,motheduc+0.190\,fatheduc$$
+$$R^2=0.249, n=1230$$
+
+Sample variation in educ is is 24.9% explained by parents education (mother and father education) accordingly with $R^2$. The coefficient says that every additional unit of mother's highest grade predicts - on average and holding everything else constant - a 0.304 increase in higher workng men highest grade.
+
+### (iii)
+
+```{r}
+htv2<-lm(educ~motheduc+fatheduc+abil,htv)
+stargazer(htv2,type="text")
+```
+$$\widehat{educ}=8.449+0.189\,motheduc+0.111\,fatheduc+0.502\,abil$$
+$$R^2=0.428, n=1230$$
+
+Yes, abil is a relevant variable and its isolated effect on educ after controlling for parent's education is positive and significative. Additionaly, $R^2$ highly improves.  So, adding this variable helps for sure in explaining the variations in education.
+
+### (iv)
+
+```{r}
+htv4<-lm(educ~motheduc+fatheduc+abil+I(abil^2),htv)
+library(wooldridge)
+stargazer(htv4,type="text")
+```
+```{r}
+abilmin<--coefficients(htv4)[4]/(coefficients(htv4)[5]*2)
+abilmin
+abil2min<-coefficients(htv4)[5]*2
+abil2min
+```
+
+
+$\frac{d educ}{d abil}$ = $\beta_3$ + 2$\beta_4$*abil* = 0. (FOC)
+
+*$abil^*$* = - $\frac{\beta_3}{2\beta_4}$ = - 3.96 .
+
+$\frac{d^2 educ}{d abil^2}$ = 2$\beta_4$ = 0.10 > 0.
+
+
+### (v)
+
+
+```{r}
+table(htv$abil<=abilmin)
+```
+In the sample only 15 men have an ability less than -3.96, 1215 men have ability above it. So indeed it is a very small fraction. It is important to have this very small fraction because we dont expect our dependent variable educ increases as a person ability increases. We expect educ rises as we move to the left of *abil. 
+
+### (vi)
+
+Setting motheduc on 12.18 and fatheduc on 12.45. The equation on iv would be written as:
+$$edu=0.190*12.18+0.109*12.45+0.401abil+0.051abil^2+8.240$$
+$$educ=11.91125+0.401abil+0.051abil^2$$
+```{r}
+library(ggplot2)
+predictedEduc<-11.91125+coefficients(htv4)[4]*htv$abil+coefficients(htv4)[5]*htv$abil*htv$abil
+plotdata<-as.data.frame(cbind(predictedEduc,htv$abil))
+
+ggplot(aes(x = V2, y = predictedEduc),data=plotdata)+
+  geom_point(size = 1, color = "blue" )+
+  ylab("Predicted Education")+
+  xlab("Ability Level")
+```
+

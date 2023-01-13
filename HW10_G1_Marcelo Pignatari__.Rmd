@@ -1,0 +1,126 @@
+---
+title: "HW 11 - Qualitative Regressors, Part 2"
+author: "Marcelo Pignatari"
+date: "11/27/2021"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+\tableofcontents
+
+
+\newpage
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+```
+
+
+```{r include=FALSE}
+library(wooldridge)
+library(stargazer)
+library(dplyr)
+library(car)
+library(ggplot2)
+```
+
+# Problems
+
+## Question 1
+
+### (i)
+
+
+$1-outlf= \beta_0 + \beta_1nwifeinc + \beta_2 + \beta_3exper + \beta_4exper^2 + \beta_5age + \beta_6kidslt6 + \beta_7kidsage6 → outlf = 1 - \beta_0 - \beta_1nwifeinc - \beta_2 - \beta_3exper - \beta_4exper^2 - \beta_5age - \beta_6kidslt6 - \beta_7kidsage6$
+
+The slope estimates will all change sign.  The intercept becomes 1 - 0.586 = `r 1-.586`.
+
+### (ii)
+
+WIll be no effect on the standard error of the slope and intercept estimates.
+
+$$ Var(-X) = (-1)^2 Var(X) = Var(X) $$
+
+$$Var(1-X) = Var(1) + Var(-X) + 2Cov(-1,X) = 0 + Var(X) + 0 = Var(X)$$
+### (iii)
+
+As $R^2=\frac{SST-SSR}{SST}$ and slope and variance stay the same, then $R^2$ won't change.
+
+# COmputer exercices
+
+## Question 2
+
+### (i) 
+
+```{r}
+data(apple)
+#head(apple)
+
+df<-mutate(apple, ecobuy = ifelse(ecolbs>0,1,0))
+#head(df)
+prop.table(table(df$ecobuy))
+count(df,ecobuy)
+```
+
+62.4% claim they would buy ecolabeled apples.
+
+
+### (ii)
+
+```{r}
+MRM1<-lm(ecobuy~ecoprc+regprc+faminc+hhsize+educ+age,df)
+stargazer(MRM1,type = "text")
+```
+
+$\widehat{ecobuy}=0.424-0.803ecoprc+0.719regprc+0.001faminc+0.024hhsize+0.025educ-0.001age$
+                  (0.165)  (0.109)     (0.132)    (0.001)      (0.013)  (0.008)    (0.001)
+$$n=660,R^2=0.11,\bar{R^2}=0.102$$
+
+One unite increase in ecolabeled apple price - on average and holding everything else constant - is associated to a decrease in family's likelihood to buy ecolabeled apples in 0.803%.
+
+One unit increase in regular apple price - on average and holding everything else constant - is associated to a increase in family's likelihood to buy ecolabeled apples in 0.719%.
+
+```{r}
+linearHypothesis(MRM1,c("faminc=0","hhsize=0","educ=0","age=0"))
+
+```
+
+P-value is 0.154% so we reject the null hypothesis at 1% significance level, wich means that that we reject the statement that the nonprice variables are jointly insignificants.
+Years of education seems to have the most important effect. This make sense because the more people study, more information about the health benefits of organic products they will have and therefore will be more willing to buy these products.
+
+### (iv)
+
+```{r}
+MRM2<-lm(ecobuy~ecoprc+regprc+log(faminc)+hhsize+educ+age,df)
+stargazer(MRM1,MRM2,type = "text")
+```
+
+The $R^2$ increase by 0.2%, so the log(faminc) model fits the data slightly better.
+An increase in 1% in family income - on average and holding everything else constant - predicts an increase in family's probability to buy ecolabeled apples in 4.5%.
+
+### (v)
+
+```{r}
+
+df2<-mutate(df,y_hat=predict(MRM2))
+df3<-as.data.frame(df2)
+#head(df3)
+count(df3,y_hat>1)
+count(df3,y_hat<0)
+
+```
+
+It does not have any negative estimated probability and only 2 greater than one. It is not sufficient for make me concerned about the reliability of the model.
+
+### (vi)
+
+```{r}
+(Percent_correctly_predicted_1       <- sum(predict(MRM2) > 0.5 & df2$ecobuy==1) / sum(df2$ecobuy==1))
+(Percent_correctly_predicted_0       <- sum(predict(MRM2) <= 0.5 & df2$ecobuy==0) / sum(df2$ecobuy==0))
+ 
+
+```
+
+The percent correctly predicted for ecobuy = 0 is 41.1%, for ecobuy = 1 is 82.5%. Hence the latter outcome predicts better. 

@@ -1,0 +1,493 @@
+---
+title: "Problem Set 3"
+author: "Marcelo Pignatari"
+date: "03/14/2022"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+```
+
+
+```{r include=FALSE}
+
+library(astsa)
+library(tibble)
+library(knitr)
+library(xts)
+library(xtable)
+library(ggplot2)
+library(stargazer)
+library(tseries)
+library(nortest)
+library(fGarch)
+library(forecast)
+library(TSA)
+
+```
+
+# Theory
+
+## Problem 1:
+
+given:
+$$Y_t=\epsilon_t=\sigma_tZ_t$$
+Where: where $Z_{t} \sim \,iid\, N(0, 1)$
+
+$$\sigma_t^2=\alpha_0+\alpha_1Y^2_{t-1}$$
+then:
+$$Y_t^2=\sigma^2_tZ_t^2=(\alpha_0+\alpha_1Y^2_{t-1})Zt^2$$
+
+Iterating and substituting 2 steps we have:
+
+$$Y_t^2=(\alpha_0+\alpha_1(\sigma^2_{t-1}Z^2_{t-1}))Zt^2$$
+$$=(\alpha_0+\alpha_1Z^2_{t-1}(\alpha_0+\alpha_1Y^2_{t-2}))Zt^2$$
+$$=(\alpha_0+\alpha_1Z^2_{t-1}(\alpha_0+\alpha_1(\sigma^2_{t-2}Z^2_{t-2})))Zt^2$$
+$$=(\alpha_0+\alpha_1Z^2_{t-1}(\alpha_0+\alpha_1Z^2_{t-2}(\alpha_0+\alpha_1Y^2_{t-3})))Zt^2$$
+$$=(\alpha_0+\alpha_1Z^2_{t-1}(\alpha_0+\alpha_0\alpha_1Z^2_{t-2}+\alpha_1^2Z^2_{t-2}Y^2_{t-3}))Zt^2$$
+$$=(\alpha_0+\alpha_0\alpha_1Z^2_{t-1}+\alpha_0\alpha_1^2Z^2_{t-1}Z^2_{t-2}+\alpha_1^3Z^2_{t-1}Z^2_{t-2}Y^2_{t-3})Z_t^2$$
+$$=\alpha_0(Z_t^2+\alpha_1Z^2_tZ^2_{t-1}+\alpha_1^2Z_t^2Z^2_{t-1}Z^2_{t-2})+\alpha_1^3Z^2_tZ^2_{t-1}Z^2_{t-2}Y^2_{t-3}$$
+$$Y^2_t=\alpha_0\sum^2_{i=0}(\alpha_1^iZ^2_tZ^2_{t-1}Z^2_{t-i})+\alpha_1^3Z^2_tZ^2_{t-1}Z^2_{t-2}Y^2_{t-3}$$
+
+Therefore, iterating and subtituting n steps we conclude:
+
+$$Y^2_t=\alpha_0\sum^n_{i=0}(\alpha_1^iZ^2_tZ^2_{t-1}Z^2_{t-i})+\alpha_1^{n+1}Y^2_{t-n-1}Z^2_tZ^2_{t-1}...Z^2_{t-n}$$
+
+
+# Application
+
+## Problem 1:
+
+### a)
+
+```{r fig.height=10, fig.width=10}
+data(cmort)
+#cmort
+par(mfrow=c(3,1))
+plot(cmort)
+acf(cmort)
+pacf(cmort)
+#str(cmort)
+```
+
+We see a pattern in data series plot for ups and downs (peaks and valleys).
+The series doesn't look like stationary, because we have several spikes beyond the confidence interval both in ACF and PACF.
+
+### b)
+
+```{r}
+
+m1<-ar.ols(cmort,aic=TRUE,order.max=2)
+m1
+
+m2<-arima(cmort,order=c(2,0,0))
+m2
+```
+
+OLS: $$\hat{x_t}=-0.047+0.43x_{t-1}+0.44x_{t-2}$$
+
+MLE: $$\hat{x_t}=88.85+0.43x_{t-1}+0.44x_{t-2}$$
+
+The slope are basically the same, the intercepts differs strongly. 
+
+### c) 
+
+```{r fig.height=10}
+
+#str(m1)
+r1<-m1$resid
+r1<-m1$resid[3:508]
+
+r2<-m2$resid[3:508]
+
+par(mfrow=c(3,2))
+
+plot(r1,type="l",main="OLS residuals")
+plot(r2,,type="l",main="MLE residuals")
+
+acf(r1,main="ACF OLS residuals")
+pacf(r1,main="PACF OLS residuals")
+
+acf(r2,main="ACF MLE residuals")
+pacf(r2,main="PACF MLE residuals")
+
+
+```
+
+There are three spikes slightly beyond CI, but it doesn't seems that exists a systematic behavior. 
+
+```{r}
+LB1<-Box.test(r1,lag=36,type="Ljung")
+LB1
+
+LB2<-Box.test(r2,lag=36,type="Ljung")
+LB2
+
+```
+
+We got p-values of 0.28 and 0.30 respectively for the residuals of the models, i.e. we fail to reject that the residuals are serially uncorrelated. Therefore it suggests that the residuals behave as a white noise process and all the relevant systematic components were captured by the model. 
+
+### d)
+
+```{r fig.height=10, fig.width=10}
+
+#m1.predict<-predict(m1,n.ahead=4)
+#m1.predict
+#ts.plot(cmort,m1.predict$pred)
+#str(m1.predict)
+
+
+m1.fcast<-forecast(m1,h=4)
+m1.fcast
+
+
+plot(m1.fcast,main="OLS forecast")
+
+```
+
+The model forecasts: 
+For the 1st following week an average cardiovascular mortality in Los Angeles County of 87.59, ranging between 76.46 and 98.74 with 95% of confidence.
+For the 2nd week 86.76, in a 95% confidence interval of 74.64 and 98.88.
+For the 3rd week 87.34, varying in the interval of 73.35 and 101.32 with 5% tolerance.
+For the 4th week 87.21, varying in the interval of 72.33 and 102.0.96 with 5% tolerance.
+
+First we can conclude that the point forecasts does not vary in a remarkable way for the 4 following weeks. Second, we can observe that the confidence intervals of the forecasts estimates increase with the time, i.e. the forecasts become even less robust as higher the lag. 
+
+## Problem 2:
+
+### a)
+
+```{r fig.height=10, fig.width=10}
+
+data(oil)
+oil
+# oil
+plot(oil)
+par(mfrow=c(2,1))
+acf(oil)
+pacf(oil)
+adf.test(oil,k=0)
+adf.test(oil)
+
+```
+
+At plot we can see a data with systematic components (trend, different volatility, etc), clearly is not a white noise process.
+ACF and PACF plot confirms it. Data has all ACF spikes beyond the confidence interval decaying very slowly and suggesting a random walk process. PACF shows 5 spikes beyond confidence interval besides the great spike on the first lag.
+Running the Dick Fuller test we fail to reject the non-stationarity hypothesis (H0). Running the Augmented Dick Fuller test we get a p-value of 0.0498 (at the limit of 5% level of tolerance) we reject the null hypothesis of a unit root in the data, i.e. the data shoulfd be differences 8 times to became stationary. 
+
+### b)
+
+```{r}
+y1<-window(oil,end=c(2010,10))
+y2<-window(oil,start=c(2010,11))
+m3<-auto.arima(y1,ic="bic",seasonal=TRUE,stationary=FALSE,trace=TRUE)
+m4<-auto.arima(y1,ic="aic",seasonal=TRUE,stationary=FALSE,trace=TRUE)
+
+plot(y1)
+
+summary(m3)
+is<-accuracy(m3)
+is
+#str(m3)
+plot(m3$fitted)
+lines(y1,col="red")
+
+summary(m4)
+is2<-accuracy(m4)
+is2
+#str(m4)
+plot(m4$fitted)
+lines(y1,col="red")
+
+rbind(is,is2)
+
+```
+
+AIC suggests an ARIMA (1,1,1)(0,0,1)[52], i.e. ARIMA (1,1,1) with an annual moving average component.
+
+BIC suggests an ARIMA (1,1,1)
+
+
+Analyzing in sample accuracy, the residuals-fit indices indicates good coefficients for both models with very similar values between each other. 
+Coeffients for both models are significant at 5% level. Taking this informations into account I will chose the model selected by the lowest BIC, because it is a more robust method by itself, which penalizes more the log-likelihood statistic regarding number of observations.  
+
+So, the best fitting model is an ARIMA (1,1,1)
+$$\triangle{Y_t}=0.8856\triangle{Y_{t-1}}+e_t+-0.7887e_{t-1}$$
+
+### c)
+
+```{r fig.height=10, fig.width=10}
+# str(m1)
+rm3<-m3$residuals
+par(mfrow=c(3,1))
+plot(m3$residuals)
+acf(rm3)
+pacf(rm3)
+adf.test(rm3,k=0)
+adf.test(rm3)
+LB1<-Box.test(rm3,lag=36,type="Ljung")
+LB1
+tsdiag(m3,gof.lag=36)
+qqnorm(rm3)
+qqline(rm3)
+shapiro.test(rm3)
+jarque.bera.test(rm3)
+ad.test(rm3)
+cvm.test(rm3)
+lillie.test(rm3)
+
+```
+
+The plot of residuals show a series closer to a white noise but still remains some structural components, as clusters of different volatilites.
+ACF plot clearly shows 3 spikes beyond the CI and PACF 4 spikes beyons the CI, evidencing a non-white noise process.
+Both Dick FUller and Augmented Dick Fuller Test reject the hypothesis on non-stationary at 1% level. Which exposes the weakness of the test for some data patterns.
+Ljung Box-test reject the hypothesis that time lag in the series are uncorrelated, pointing out a non-white noise process.
+QQ-plot shows that data behaves like a normal distribution in the central quantiles, but in the tail of the distribution shows a different behavior. Shapiro-Wilk, Jarque Bera and all of the normality tests strongly reject the normality hypothesis for the data. So diagnostics conclude that residuals are not behaving as white noise process and therefore the model still lacks specification.
+
+### d)
+
+```{r fig.height=10, fig.width=10}
+m3.predict<-predict(m3,n.ahead=15)
+m3.predict
+
+ts.plot(oil,m3.predict$pred)
+lines(fitted(m3),col="red")
+
+#str(m3.predict)
+
+m3.fcast<-forecast(m3,h=15)
+m3.fcast
+
+par(mfrow=c(2,1))
+ts.plot(oil,m3.predict$pred)
+lines(fitted(m3),col="red")
+plot(m3.fcast)
+lines(y2)
+# str(m3.fcast)
+class(m3.fcast)
+m3.fcast
+
+y2
+os<-accuracy(m3.fcast,y2)
+os
+comp<-cbind(m3.fcast,y2)
+comp1<-as.data.frame(comp)
+comp1
+
+```
+
+Comparing to results in b), we can clearly see that the out of sample accuracy is worst than in sample accuracy. Excepting MASE, all of the measurements of forecast error bias are greater than one. Comparing the values in the table, from 2 to 10 ahead forecast the actual values are very close to the upper limit of the 80% confidence interval forecast. We can conclude that the model is still efficient to predict data in 20% level tolerance, but not much beyond that. abact which I can whic 
+
+### e)
+
+```{r}
+Hm3<-HoltWinters(y1)
+str(y1)
+#Hm3
+#str(Hm3)
+#print(Hm3$fitted)
+#print(c(Hm3$alpha,Hm3$beta,Hm3$gamma))
+plot(Hm3,col=1:2)
+legend("topleft", c("data","fitted"), col=c(1,2), lty=1, bty="n")
+
+His<-accuracy(Hm3$fitted,y1)
+His
+par(1,2)
+is
+His
+
+```
+
+Comparing with the non-smoothing model, this model has only a better ME but a worst value for all the others measurements of accuracy.
+
+```{r}
+
+Hm3.predict<-predict(Hm3,n.ahead=15)
+Hm3.predict
+#str(Hm3.predict)
+ts.plot(oil,Hm3.predict,col=1:2)
+legend("topleft",c("data","prediction"),col=c(1,2),lty=1)
+#str(Hm3.predict)
+
+Hm3.fcast<-forecast(Hm3,h=15)
+#Hm3.fcast
+plot(Hm3.fcast)
+lines(y2)
+
+
+#str(Hm3.fcast)
+#class(m3.fcast)
+Hos<-accuracy(Hm3.fcast,y2)
+Hos
+
+
+y2
+Hcomp<-cbind(Hm3.fcast,y2)
+Hcomp1<-as.data.frame(Hcomp)
+Hcomp1
+
+par(1,2)
+os
+Hos
+
+```
+
+Comparing to the non-smooth model, this one has a slightly better ME and MPE and a worst RMSE, MAE,MAPE and MASE.
+The plot shows that this prediction bends further down (in the opposite direction of the actual data) comparing to the non-smooth model). 
+Comparing the actual data with the forecast confidence interval, the 80% confidence interval for the 5-step ahead forecast doesn't include the actual data value.  
+This suggest that smoothing the model predicts a slightly less accurate result.
+
+### f)
+
+```{r fig.height=10, fig.width=10}
+tsdiag(m3,gof.lag=36)
+
+
+```
+
+```{r}
+LB1<-Box.test(m3$residuals,lag=36,type="Ljung")
+LB1
+
+LB2<-Box.test(m3$residuals^2,lag=36,type="Ljung")
+LB2
+McLeod.Li.test(m3,m3$residuals^2)
+```
+
+
+Testing the residuals, the Portmanteu Test reject the non-correlation hypothesis for beyod 8 lags. Ljung Box test strongly reject the Hypothesis of non-correlation bewtween lag groups. 
+Testing the squared residuals, i.e. investigating correlation between volatilities of the sample, we also strongly reject the non-correlation hypothesis for Ljung Box Test and McLeod-Li test. 
+Therefore, we conclude that modeling this data needs to capture volatility clustering over time, putting structure on that. 
+
+### g)
+
+```{r}
+
+
+vm1<-garchFit(~arma(1,1)+garch(1,0),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm2<-garchFit(~arma(1,1)+garch(2,0),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm5<-garchFit(~arma(1,1)+garch(5,0),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm8<-garchFit(~arma(1,1)+garch(8,0),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm10<-garchFit(~arma(1,1)+garch(10,0),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm11<-garchFit(~arma(1,1)+garch(1,1),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm12<-garchFit(~arma(1,1)+garch(1,2),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm21<-garchFit(~arma(1,1)+garch(2,1),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm55<-garchFit(~arma(1,1)+garch(5,5),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm85<-garchFit(~arma(1,1)+garch(8,5),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm101<-garchFit(~arma(1,1)+garch(10,1),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm1010<-garchFit(~arma(1,1)+garch(10,10),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+# str(vm1)
+
+vm1@fit$ics
+
+vm2@fit$ics
+
+vm5@fit$ics
+
+vm8@fit$ics
+
+vm10@fit$ics
+
+
+vm11@fit$ics
+
+vm12@fit$ics
+
+vm21@fit$ics
+
+vm55@fit$ics
+
+vm85@fit$ics
+
+vm101@fit$ics
+
+vm1010@fit$ics
+
+```
+
+Trying several models I found the ARIMA(1,1,1) GARCH (1,1) the model with the lowest AIC and BIC.
+
+
+### h)
+
+```{r fig.width=10}
+sres1<-ts(vm11@residuals/vm11@sigma.t,start=c(2000, 2),end = c(2010, 10) ,frequency = 52)
+sres1<-vm11@residuals/vm11@sigma.t
+sres12<-sres1^2
+#str(vm1)
+
+plot(sres1,type="l")
+plot(sres12,type="l")
+
+par(mfrow=c(2,2))
+acf(sres1)
+pacf(sres1)
+acf(sres12)
+pacf(sres12)
+
+```
+
+```{r}
+
+LBvm1<-Box.test(sres12,lag=12,type="Ljung")
+LBvm1
+
+LBvm12<-Box.test(sres1,lag=12,type="Ljung")
+LBvm12
+
+qqnorm(sres1, main="Oil ARIMA+GARCH Residual Quantile plot")
+qqline(sres1)
+
+qqnorm(sres12, main="Oil ARIMA+GARCH Residual Quantile plot")
+qqline(sres12)
+
+```
+
+The model ARIMA(1,1,1) GARCH (1,1) provides Box-Ljung test p-value=1 for the standardized squared residuals and a p-value=0.43 for standardized residuals. Strongly evidencing a white noise process in the residuals not specified by the model.  ACF and PACF of the squared residuals shows a clearly white noise process, for non-squared residuals ACF and PACF has only few spikes. 
+Definitely this is a good model that eliminates the conditional heteroskedasticiity (volatility correlation or clustering over time).
+
+
+### i)
+
+```{r fig.width=10}
+
+vm11.predict<-predict(vm11,n.ahead=15)
+
+#str(vm1)
+#str(vm1.predict)
+
+vm11m<-ts(vm11.predict$meanForecast,start = c(2010, 11),end = c(2010, 25),frequency = 52)
+#str(vm1m)
+vm11u<-ts(vm11.predict$meanForecast+2*vm11.predict$standardDeviation,start = c(2010, 11),end = c(2010, 25),frequency = 52)
+vm11d<-ts(vm11.predict$meanForecast-2*vm11.predict$standardDeviation,start = c(2010, 11),end = c(2010, 25),frequency = 52)
+
+#dev.off()
+#dev.set(dev.next())
+#par(mfrow=c(2,2))
+#while (!is.null(dev.list()))  dev.off()
+
+plot(diff(y1))
+polygon(x=c(index(vm11u),rev(index(vm11u))),y=c(vm11d,rev(vm11u)),col="slategray1",border="slategray4")
+lines(diff(y2),col="red")
+lines(vm11m,col="blue")
+
+
+```
+
+Plot shows the forecast within the 95%, in some points (beginning and end of the forecast) the actual value might surpass the 80% prediction interval. But overall is a very good prediction, which in comparison with the other two forecasts, give us a more precise forecast in a small confidence interval. Additionaly it doesn't seems that the confidence interval of the prediction increases as the time goes by, then we have a better further steps ahead prediction.  

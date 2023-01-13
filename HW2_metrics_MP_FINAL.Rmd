@@ -1,0 +1,817 @@
+---
+title: "HW2_metrics"
+author: "Marcelo Pignatari"
+date: 10/16/22
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library("psych")
+library("dplyr")
+library("corrplot")
+library("stargazer")
+library("censReg")
+library("sampleSelection")
+library("AER")
+library("truncreg")
+library(dplyr)
+#install.packages("npsf")
+library(corrplot)
+library(survival)
+library("gtsummary")
+
+```
+
+# Application
+
+## Problem 1
+
+```{r}
+a<-rbind(1.8, 2.2, 2.5, 2.6, 3, 3.5, 3.8, 5.3, 5.4, 5.7, 6.6, 8.2, 8.7, 9.2, 9.2,
+9.8, 10.0, 10.2, 10.7, 11.0, 11.1, 11.7, 12.1, 12.2, 12.3)
+c<-rbind(1.4, 1.6, 1.8, 2.4, 2.8, 2.9, 3.1, 3.5, 3.6, 3.9, 4.1, 4.2, 4.7, 4.9, 5.2,
+5.8, 5.9, 6.5, 7.8, 8.3, 8.4, 8.8, 9.1, 9.9, 11.4)
+ac<-rbind(a,c)
+t1<-rbind(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
+t2<-rbind(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1)
+t3<-rbind(t1,t2)
+b<-rbind(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0)
+d<-rbind(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1)
+bd<-rbind(b,d)
+data<-cbind(ac,t3,bd)
+colnames(data)<-c("time","treatment","cens")
+data <- as.data.frame(data)
+data1<-data[data$treatment==0,]
+data2<-data[data$treatment==1,]
+
+```
+
+### (a)
+
+```{r}
+
+#1. Sort t in asceding order
+sorted_time1<-sort(data1$time)
+#length(sorted_time1)
+
+#2. Determine k distinct intervals of time
+tj1<-distinct_time1<-unique(sorted_time1)
+#length(distinct_time1)
+
+#3. Determine number of events dj at time tj
+dj1<-vector(length=length(distinct_time1))
+for(i in 1:length(distinct_time1)){
+  dj1[i]<-length(sorted_time1[sorted_time1==distinct_time1[i]])
+}
+
+# length(dj1)
+
+# censored obs mj
+
+cens1<-data1$cens
+mj1<-1-data1$cens
+#length(mj1)
+mj1<-mj1[-c(1)]
+#length(mj1)
+
+#4. Number of obs ar risk nj at time tj
+nj1<-vector(length=length(distinct_time1))
+nj1[1]<-length(data1$time)
+for(i in 1:(length(distinct_time1)-1)){
+  nj1[i+1]<-nj1[i]-dj1[i]
+}
+
+nj1<-nj1[-c(25)]
+#length(nj1)
+
+#dj1<-c(0,dj1)
+
+# KP estimator S group 1
+km1<-cumprod((nj1-dj1)/nj1)
+table1<-cbind(tj1,nj1,dj1,mj1,km1)
+
+# Group 2 CHR=1
+sorted_time2<-sort(data2$time)
+#length(sorted_time2)
+
+tj2<-distinct_time2<-unique(sorted_time2)
+#length(distinct_time2)
+
+dj2<-vector(length=length(distinct_time2))
+for(i in 1:length(distinct_time2)){
+  dj2[i]<-length(sorted_time2[sorted_time2==distinct_time2[i]])
+}
+#length(dj2)
+
+nj2<-vector(length=length(distinct_time2))
+nj2[1]<-length(data2$time)
+for(i in 1:length(distinct_time2-1)){
+  nj2[i+1]<-nj2[i]-dj2[i]
+}
+#length(nj2)
+nj2<-nj2[-c(26)]
+#length(nj2)
+
+# KP estimator S group 2
+km2<-cumprod((nj2-dj2)/nj2)
+
+mj2<-cens2<-data2$cens
+mj2<-1-data2$cens
+#length(mj2)
+
+table2<-cbind(tj2,nj2,dj2,mj2,km2)
+
+```
+
+```{r}
+table1 #group1
+```
+
+```{r}
+table2 #group2
+
+```
+
+### (b)
+
+```{r}
+#CI for the km1 estimator
+sigm1<-sqrt((km1^2)*cumsum(dj1/(nj1*(nj1-dj1))))
+lowCI1<-km1-qnorm(0.025)*sigm1
+upCI1<-km1+qnorm(0.025)*sigm1
+
+#CI for the km2 estimator
+sigm2<-sqrt((km2^2)*cumsum(dj2/(nj2*(nj2-dj2))))
+lowCI2<-km2-qnorm(0.025)*sigm2
+upCI2<-km2+qnorm(0.025)*sigm2
+
+
+```
+
+
+
+```{r}
+
+plot(distinct_time1,km1,
+main="Kaplan-Meier Estimator of Survival Function",
+xlab="Time in days",
+ylab="Survival Function1, Prob(T>t)",
+col=1,
+type="l",
+lty=1,
+xlim=c(0,13))
+lines(distinct_time1, lowCI1,
+lty=2,
+col=1)
+lines(distinct_time1, upCI1,
+lty=2,
+col=1)
+lines(distinct_time2,km2,
+col=2,
+lty=1)
+lines(distinct_time2, lowCI2,
+lty=2,
+col=2)
+lines(distinct_time2, upCI2,
+lty=2,
+col=2)
+#col=colors("green")
+legend("topright", c("group 1","CI", "group 2","CI"),
+col=c(1,1,2,2),
+lty=c(1,2),
+bty="n")
+
+```
+
+```{r}
+
+
+output<-survfit(Surv(time,cens)~treatment, data=data)
+#str(output)
+#summary(output)
+
+# PLOT THE KM ESTIMATOR
+plot(output,
+     conf.int=TRUE,
+     mark.time=TRUE, #mark.time used to indicate cens obs
+     main="Kaplan-Meier Estimator of Survival Function",
+     xlab="Time in weeks",
+     ylab="Survival Function, Prob(T>t)",
+     col=c(1,1,1,2,2,2),
+     lty=c(1,2,2,1,2,2))
+legend("topright", c("Control", "Treatment"),
+       col=1:2,
+       lty=c(1,5),
+       bty="n")
+
+```
+
+Looking only to the curves we see that curve of group 1, people without history of cronic disease, shows a higher probability to survive in any point of time comparing to group 2 - people with a historic of chronic disease. 
+
+However,curves between control and treatment data intersects in the lower and upper bound of the confidence interval. This means that there is no significant difference in time until death between people with and without history of chronic disease. 
+
+## Problem 2
+
+```{r}
+ 
+df<- read.csv("/Users/mpign/OneDrive/Documentos/12-2020/Fall 2022 USU/Econometrics III/HW_2_metrics/divorce.csv")
+
+#df
+
+```
+
+### (a)
+
+```{r}
+
+summary(df)
+
+```
+
+### (b)
+
+```{r}
+
+m<-cor(df)
+corrplot(m,method="number")
+
+```
+
+As the correlation plot shows, the highest positively correlation is between husband's education and wife's education, showing that higher educated men tends to marry high education women and the opposite is also true. Hunsband's and wife's race and mixed and wife's race also have a considerable positively correlation. This factors means that couples don't mix considerable in terms of education race and african women's are correlated with couples with different races.
+We also have an important positevely correlation between divorce and years, indicating that higher the duration of marriage, the couple is more prone to divorce. 
+
+The correlation plot doesn't show negatively correlation higher than 0.2 for any pair of variables. 
+
+### (c)
+
+```{r}
+
+
+
+hist(df$years,freq=FALSE)
+lines(density(df$years))
+
+
+
+
+```
+
+Histogram indicate a right skewed distribution (probably a log normal?) when the mass of data concentrates between 0 and 10 years and after that the volume of data decay sistematically as the year pass. This distribution is bound to reflect the population distribution. 
+
+
+### (d)
+
+```{r fig.height=10, fig.width=5}
+
+par(mfrow=c(3,1))
+
+hist(df[,10][df[,5]==0],
+     main="Density Plot",
+     xlab="Time in years",
+     ylab="Density",
+     prob=TRUE,
+     col="pink",
+     xlim=c(0,35),
+     ylim=c(0,0.1))
+hist(df[,10][df[,5]==1],
+     prob=TRUE,
+     col=rgb(0,0.5,0.5,0.5),
+     add=TRUE) #rgb(r,g,b,trans)
+legend("topright",c("Otherwise","African American Husband"),
+       col=c("pink",rgb(0,0.5,0.5,0.5)),
+       lty=1,
+       lwd=8,
+       bty="n")
+
+hist(df[,10][df[,6]==0],
+     main="Density Plot",
+     xlab="Time in years",
+     ylab="Density",
+     prob=TRUE,
+     col="pink",
+     xlim=c(0,35),
+     ylim=c(0,0.1))
+hist(df[,10][df[,6]==1],
+     prob=TRUE,
+     col=rgb(0,0.5,0.5,0.5),
+     add=TRUE) #rgb(r,g,b,trans)
+legend("topright",c("Otherwise","African American Wife"),
+       col=c("pink",rgb(0,0.5,0.5,0.5)),
+       lty=1,
+       lwd=8,
+       bty="n")
+
+hist(df[,10][df[,7]==0],
+     main="Density Plot",
+     xlab="Time in years",
+     ylab="Density",
+     prob=TRUE,
+     col="pink",
+     xlim=c(0,35),
+     ylim=c(0,0.1))
+hist(df[,10][df[,7]==1],
+     prob=TRUE,
+     col=rgb(0,0.5,0.5,0.5),
+     add=TRUE) #rgb(r,g,b,trans)
+legend("topright",c("Otherwise","Different Race"),
+       col=c("pink",rgb(0,0.5,0.5,0.5)),
+       lty=1,
+       lwd=8,
+       bty="n")
+
+
+```
+
+Data of couples with an African American husbands have less observations which duration of marriage are higher than 25 years and more observations which duration are less than 15 years, in comparison with couples with non-African American husbands.
+
+Data of couples with an African American wifes have less observations which duration of marriage are higher than 25 years and more observations which duration are less than 10 years, in comparison with couples with non-African American husbands. Between 10 and 15 years we have more data of couples with African American wifes than non-african wifes. 
+
+Data of couples which husband and wifes are of different races have higher number of observations in every range of duration of mariiage, except between 5 and 10 years. 
+
+### (e)
+
+#### (i)
+
+```{r}
+output2<-survfit(Surv(years,divorce)~1,data=df,type="kaplan-meier")
+#str(output2)
+
+hazard<-output2$n.event/output2$n.risk
+plot(output2$time,hazard,
+     main="Hazard Fcuntion",
+     xlab="Time in years",
+     ylab="Hazard Function, Prob(t|T>t)",
+     type="l",
+     lty=1,
+     col=1)
+
+
+```
+
+Here we can see that the probability of divorce after each time (in years) increases slightly until around 50 years, after that time the probability of divorce increases exponentially.
+
+#### (ii)
+
+```{r}
+
+nelson<-cumsum(output2$n.event/output2$n.risk)
+#CI for na estimator
+sigmaN<-sqrt(cumsum(output2$n.event/output2$n.risk^2))
+lb=nelson-qnorm(0.025)*sigmaN
+ub=nelson+qnorm(0.025)*sigmaN
+
+
+plot(output2$time,nelson,
+     main="Nelson-AAlen estimator of cum. hazard function",
+     xlab="Time in years",
+     ylab="Cummulative Hazard Function",
+     type="l",
+     lty=1,
+     col=1)
+lines(output2$time,lb,
+      lty=2,
+      col=2)
+lines(output2$time,ub,
+      lty=2,
+      col=2)
+legend("topleft",c("Cum haz function","95% CI"),
+col=1:2,
+lty=1:2,
+bty="n")
+
+
+```
+
+In the cumulative hazard hazard function, the graph points out that the sum of risk of divorce increases with time. However the right magnitude can only be known comparatively. The CI gets larger as the years increases because in the end the sample size includes only few observations. 
+
+#### (iii)
+
+```{r}
+
+plot(output2,
+     main="KPM estimator of Survival Function",
+     xlab="time in years",
+     ylab="Surv Function, Prob(T>t)",
+     col=c(1,2,2),
+     lty=c(1,2,2))
+legend("topright",c("Surv Funct","95% CI"),
+       col=1:2,
+       lty=1:2,
+       bty = "n")
+
+
+```
+
+KPM survival function estimation is decreasing, i.e. the probability of non-divorce (survival in a marriage), decrease as the years go by.
+
+### (iv)
+
+```{r}
+
+quantile(output2,probs=c(0.1,0.25,0.5,0.75,0.9),conf.int = TRUE)
+
+```
+
+The 10th percentile of the survival function corresponds to 4.8 years duration of marriage (with 95% CI between 4.1 and 5.15).
+
+The 25th percentile of the survival function corresponds to 11.32 years duration of marriage (with 95% CI between 10.5 and 11.95).
+
+The 50th percentile (median) of the survival function corresponds to 22 years duration of marriage (with 95% CI between 21 and 22.9)
+
+The 75th percentile of the survival function corresponds to 36.9 years duration of marriage (with 95% CI between 35.35 and 38.5)
+
+The 90th percentile of the survival function corresponds to 48.4 years duration of marriage (with 95% CI between 47.2 and 49.7)
+
+#### (v)
+
+```{r}
+
+output3<-survfit(Surv(years,divorce)~heduc,data=df,type="kaplan-meier")
+#summary(output3)
+#str(output3)
+
+plot(output3,
+conf.int=TRUE,
+main="Kaplan-Meier Estimator of Survival Function",
+xlab="Time in years",
+ylab="Survival Function, Prob(T>t)",
+col=c(1,1,1,2,2,2,7,7,7),
+lty=c(1,2,2,1,2,2,1,2,2))
+legend("topright", c("0", "1","2"),
+col=c(1,2,7),
+lty=c(1,5),
+bty="n")
+
+```
+
+We see that couples which husbands have between 12 to 15 years of education (group 1) don't have a survival function statiscally different than couples which husbands have 16 or more years of education (group 2). Which means that being in one group doesn't mean that the probability to get divorce will be higher (or lower) than another group.
+
+However, comparing group 2 and 3 with group 1 (couples which husbands have less than 12 years of education) we see that the survival probability of group 1 is statistically higher after time period greater than 15 approximatelly. This means that couples in group 1 (couples with lower educated husband) have higher probability of not divorce (lower probability of divorce) comparing to groups 2 and 3 (couples with higher educated husband).
+
+#### (vi)
+
+```{r}
+output4<-survfit(Surv(years,divorce)~weduc,data=df,type="kaplan-meier")
+#summary(output4)
+#str(output4)
+
+plot(output4,
+conf.int=TRUE,
+main="Kaplan-Meier Estimator of Survival Function",
+xlab="Time in years",
+ylab="Survival Function, Prob(T>t)",
+col=c(1,1,1,2,2,2,7,7,7),
+lty=c(1,2,2,1,2,2,1,2,2))
+legend("topright", c("0", "1","2"),
+col=c(1,2,7),
+lty=c(1,5),
+bty="n")
+
+
+```
+
+We can observe the same pattern in couples which wives have different levels of education. In the previous year of marriage there is no significant different in probability to divorce netween the groups, but when approximatelly more than 15 years of marriage, couples which wives has smaller levels of education - less than 12 years - has higher probability to survive the marriage then couples which wives have higher levels of education.
+
+This probably indicates that husbands with lower level of education tends to marry with wifes that have lower level of education and they have more propensity to not divorce comparing with higher levels of education couples. 
+
+#### (vii)
+
+```{r}
+
+output5<-survfit(Surv(years,divorce)~mixed,data=df,type="kaplan-meier")
+#summary(output5)
+#str(output5)
+
+plot(output5,
+conf.int=TRUE,
+main="Kaplan-Meier Estimator of Survival Function",
+xlab="Time in years",
+ylab="Survival Function, Prob(T>t)",
+col=c(1,1,1,2,2,2),
+lty=c(1,2,2,1,2,2))
+legend("topright", c("0", "1"),
+col=c(1,2),
+lty=c(1,5),
+bty="n")
+
+
+```
+
+There is no significant difference in the probability's duration of the marriage until divorce between couples with difference race and couples with same race.
+
+### (f)
+
+#### i)
+
+
+```{r}
+
+weib.fit<- survreg(Surv(years,divorce) ~ heduc+weduc+hblack+mixed+age+agediff, dist="weibull",data=df,robust=TRUE)
+#str(weib.fit)
+summary(weib.fit)
+beta.h<--summary(weib.fit)$table[,1]/weib.fit$scale
+#beta.h<--weib.fit$coefficients[1:8]/weib.fit$scale
+se.h<-summary(weib.fit)$table[,2]/weib.fit$scale
+web.fitconv<-print(cbind(beta.h,se.h))
+
+
+df$heduc.f<-factor(df$heduc)
+df$weduc.f<-factor(df$weduc)
+weib.fit1<- survreg(Surv(years,divorce) ~ heduc.f+weduc.f+hblack+mixed+age+agediff, dist="weibull",data=df,robust=TRUE)
+#str(weib.fit)
+summary(weib.fit1)
+beta.h1<--summary(weib.fit1)$table[,1]/weib.fit1$scale
+#beta.h<--weib.fit$coefficients[1:8]/weib.fit$scale
+se.h1<-summary(weib.fit1)$table[,2]/weib.fit1$scale
+print(cbind(beta.h1,se.h1))
+
+
+```
+
+*create dummies for heduc weduc or not?
+If the couple has a husband with 12 to 15 years of education, the hazard to divorce shifts up 39% in relation to couples which husband have less than 12 years of education. In couples which husbands have more than 16 years of education, the hazard to divorce shifts 27.1% in comparision to couples hich husbands have less than 12 years of education (this coefficient is not significant in 10% level).
+
+Without dummies: if heduc increases by one group level, the hazard to divorce shifts up  17.5% (?)
+
+If the couple has a wife with 12 to 15 years of education, the hazard to divorce shifts up 8.25% in relation to couples which wife have less than 12 years of education. In couples which wives have more than 16 years of education, the hazard to divorce shifts 15.2% in comparison to couples which wives have less than 12 years of education (this coefficient is not significant in 10% level).
+
+Without dummies: if weduc increases by one group level, the hazard to divorce shifts up  10.5% (?)
+
+hblack shifts up the hazard function in more than 50% (level of significance below 6%), mixed shifts down the hazard around 4%.
+
+husbnds age increases one year shifts hazrd up around 3.5% (signiciance at 5%). For each unit increase in age difference between husband and wife shifts down the hazard around 1%.
+
+```{r}
+# proportional changes beta
+
+beta.hr<-exp(beta.h)
+pbeta.hr<-100*(beta.hr-1)
+
+beta.hr1<-exp(beta.h1)
+pbeta.hr1<-100*(beta.hr1-1)
+
+pbeta.hr
+pbeta.hr1
+
+```
+
+hazard of divorce is 48% greater for couples which husbands are in group1 of education than in group0.
+hazard of divorce is 31% greater for couples which husbands are in group2 of education than in group0.
+hazard of divorce is 8.59% greater for couples which wifes are in group1 of education than in group0.
+hazard of divorce is 16.4% greater for couples which wifes are in group2 of education than in group0.
+
+hazard of divorce is 70% greater for couples which husband's race are African American than in otherwise.
+hazard of divorce is 70% lower for couples with different race than otherwise.
+
+
+#### ii)
+
+```{r}
+
+xb<-beta.h[1]+beta.h[2]*mean(df[,3])+beta.h[3]*mean(df[,4])+
+beta.h[4]*mean(df[,5])+beta.h[5]*mean(df[,7])+beta.h[6]*mean(df[,8])+
+beta.h[7]*mean(df[,9])
+alph<-1/weib.fit$scale
+
+mg.eff1<-(-beta.h/alph)*(exp(-xb/alph))*gamma(1+(1/alph))
+
+
+mg.eff1
+
+
+```
+
+Expected duration of marriage decreases 2.85 years - on average and other else  constant - when a one unit (group 0 to 1 or group 1 to 2) increase in husband's education happens.
+
+A one unit increase (group 0 to 1 or group 1 to 2) in wife's education predicts - on average and other else constant - a decrease in 1.6 years in expected duration of marriage. 
+A one unit increase in age difference between husband and wife predicts - on average and other else constant - an increase in 0.17 years in expected duration of marriage.
+
+
+### iii)
+
+```{r}
+
+lambd<-exp(xb)*alph*df[,10]^(alph-1)
+#head(df)
+
+plot(df[,10][order(df[,10])], lambd[order(df[,10])],
+type='l',
+xlab="Time until divorce in years",
+ylab="Hazard")
+
+
+
+
+```
+
+As alpha>1 a monotonically increasing hazard function is expected and the graph confirms it. So the probability of risk to divorce increases as high the years of marriage. 
+
+#### (iv)
+
+```{r}
+xb1<-beta.h[1]+beta.h[2]*mean(df[,3])+beta.h[3]*mean(df[,4])+
+beta.h[4]*mean(df[,5])+beta.h[5]*1+beta.h[6]*mean(df[,8])+
+beta.h[7]*mean(df[,9])
+
+xb0<-beta.h[1]+beta.h[2]*mean(df[,3])+beta.h[3]*mean(df[,4])+
+beta.h[4]*mean(df[,5])+beta.h[5]*0+beta.h[6]*mean(df[,8])+
+beta.h[7]*mean(df[,9])
+
+lambd1<-exp(xb1)*alph*df[,10]^(alph-1)
+lambd0<-exp(xb0)*alph*df[,10]^(alph-1)
+
+plot(df[,10][order(df[,10])], lambd1[order(df[,10])],
+type='l',lty=1,col=1,
+xlab="Time until Divorce in years",
+ylab="Hazard")
+lines(df[,10][order(df[,10])], lambd0[order(df[,10])],
+lty=5,
+col=2)
+legend("topright", c("Mixed couples", "otherwise"),
+lty=c(1,5),
+col=1:2,
+bty="n")
+
+
+```
+
+For 'mixed' variable, hazard function is also monotonic increasing. Overall, mixed couples has higher risk to divorce in any point after 5 years of marriage (approximately) compared to no mixed-couples. The confidence interval can confirm if is significant or not.  
+
+#### (v)
+
+```{r}
+
+
+survfun<-exp(-exp(xb)*df[,10]^alph)
+plot(df[,10][order(df[,10])],survfun[order(df[,10])],
+     type="l",
+     lty=1,
+     col=1,
+     xlab="Time until Divorce in years",
+     ylab="Survival Function")
+lines(output2$time,output2$surv,
+      lty=5,
+      col=2)
+legend("topright",c("Parametrics (Weibull)","Non-parametric(KM)"),
+       col=1:2,
+       lty=c(1,5),
+       bty="n")
+  
+  
+```
+
+Survival function plot shows that the chance to not-divorce decreases as longer the marriage duration (in years).
+The shape of the function approximates very well with the shape of the non-parametric KM survival function, which is good for the model estimation assumption.
+
+#### (vi)
+
+```{r}
+
+#weib.fit<- survreg(Surv(years,divorce) ~ heduc+weduc+hblack+mixed+age+agediff, dist="weibull",data=df,robust=TRUE)
+#summary(weib.fit)
+# AIC = - 2log(likelihood) + 2k, where k is the number of estimated param
+ll.weib<-weib.fit$loglik[2]
+k<-8
+aic.weib<- -2*ll.weib+2*k
+print(aic.weib)
+# BIC = - 2log(likelihood) + k*log(n), where k is the number of estimated param
+n<-nrow(df)
+bic.weib<- -2*ll.weib+k*log(n)
+print(bic.weib)
+
+
+exp.fit<- survreg(Surv(years,divorce) ~ heduc+weduc+hblack+mixed+age+agediff, dist="exponential",data=df,robust=TRUE)
+# AIC = - 2log(likelihood) + 2k, where k is the number of estimated param
+ll.exp<-exp.fit$loglik[2]
+k<-8
+aic.exp<- -2*ll.exp+2*k
+print(aic.exp)
+# BIC = - 2log(likelihood) + k*log(n), where k is the number of estimated param
+n<-nrow(df)
+bic.exp<- -2*ll.exp+k*log(n)
+print(bic.exp)
+
+logn.fit<- survreg(Surv(years,divorce) ~ heduc+weduc+hblack+mixed+age+agediff, dist="lognormal",data=df,robust=TRUE)
+# AIC = - 2log(likelihood) + 2k, where k is the number of estimated param
+ll.logn<-logn.fit$loglik[2]
+k<-8
+aic.logn<- -2*ll.logn+2*k
+print(aic.logn)
+# BIC = - 2log(likelihood) + k*log(n), where k is the number of estimated param
+n<-nrow(df)
+bic.logn<- -2*ll.logn+k*log(n)
+print(bic.logn)
+
+gauss.fit<- survreg(Surv(years,divorce) ~ heduc+weduc+hblack+mixed+age+agediff, dist="gaussian",data=df,robust=TRUE)
+# AIC = - 2log(likelihood) + 2k, where k is the number of estimated param
+ll.gauss<-gauss.fit$loglik[2]
+k<-8
+aic.gauss<- -2*ll.gauss+2*k
+print(aic.gauss)
+# BIC = - 2log(likelihood) + k*log(n), where k is the number of estimated param
+n<-nrow(df)
+bic.gauss<- -2*ll.gauss+k*log(n)
+print(bic.gauss)
+  
+w1<-rbind(aic.weib,bic.weib)
+w2<-rbind(aic.exp,bic.exp)
+w3<-rbind(aic.logn,bic.logn)
+w4<-rbind(aic.gauss,bic.gauss)
+wa<-cbind(w1,w2,w3,w4)
+colnames(wa)<-c("weib","exp","logn","gauss")
+wa
+
+
+
+
+```
+
+Using AIC and BIC as measuring of fit of the data, clearly we see that Weibull distribution estimation has the lowest number, therefore the best fit for the data. 
+
+### (g)
+
+#### (i)
+
+```{r}
+fit.ph<-coxph(Surv(years,divorce) ~ heduc+weduc+hblack+mixed+age+agediff,
+data=df,
+method="breslow") # handling tied event times
+
+
+
+```
+
+```{r}
+web.fitconv
+summary(fit.ph)
+
+```
+
+Comparing parameters between parametric and semi-parametric models we can see that they are pretty similar in both estimator values and standard deviations. 
+
+#### (ii)
+
+```{r}
+
+plot(output2,
+main="Cox PH Survival Function",
+xlab="Time in years",
+ylab="Survival Function, Prob(T>t)",
+col=c(1,1,1),
+lty=c(1,2,2))
+lines(df[,10][order(df[,10])],survfun[order(df[,10])],
+col=c(2,2,2),
+lty=c(1,2,2))
+lines(survfit(fit.ph),
+col=c(7,7,7),
+lty=c(1,2,2))
+legend("topright",c("Non-Parametric KM","Parametric-Weibull","Cox PH Survival function"),
+col=c(1,2,7),
+lty=c(1),
+bty="n")
+
+
+
+
+```
+
+As the plot shows we can see that both parametric and no-parametric estimations follow the non-parametric pattern of the survival function pretty well. However COX PH survival function tends to slightly over-estimate the probabilities and Parametric-Weibull survival function tends to slightly under-estimate the probabilities.
+
+#### (iii)
+
+```{r}
+
+cox.zph(fit.ph)
+
+
+```
+
+```{r}
+
+par(mfrow=c(2,3))
+plot(cox.zph(fit.ph))
+
+```
+
+The test and the graph show us that hblack, mixed and age violates the proportionality assumption, i.e. these regressors are not time independent. The global measure also indicates that there is such violation.
+
+#### (iv)
+
+
+```{r}
+
+fit.ph.int<-coxph(Surv(years,divorce) ~ heduc+weduc+hblack+mixed+age+agediff+hblack:years+mixed:years+age:years,
+data=df,
+method="breslow")
+
+summary(fit.ph.int)
+
+```
+
+It was confirmed that the covariates hblack and age decreases over time. However it wasn't confirmed for covariate mixed, i.e. it's not statiscally significant the variation (decrease) of mixed over time. 

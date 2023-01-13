@@ -1,0 +1,566 @@
+---
+title: "Econometrics Project"
+author: "Marcelo Pignatari"
+date: "05/01/2022"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+
+
+```
+
+```{r include=FALSE}
+
+library(astsa)
+library(tibble)
+library(knitr)
+library(xts)
+library(xtable)
+library(ggplot2)
+library(stargazer)
+library(tseries)
+library(nortest)
+library(fGarch)
+library(forecast)
+library(TSA)
+library(dynamac)
+library(ARDL)
+library(imputeTS)
+library(lmtest)
+library(kableExtra)
+library(patchwork)
+library(stats)
+library(fGarch)
+library(car)
+library(lmtest)
+library(DataEditR)
+
+
+```
+
+## (a) Introduction [2 pages max]
+## (i) Motivation: Background information. Identify the problem.
+
+The Russian-Ukraine conflict triggered per se an increase in global oil price due to the widespread importance of Russia in its production as well in natural gas. With the war, several countries have banned international trade along with financial transactions with Russia, which caused supply shortages and prices increases. Besides the importance of the actual context, oil price always has been a key component in driving inflation and economic activity and its forecast is very demanded for the policy makers. More accurate forecasts of the the price of oil improve forecasts of macroeconomic outcomes, economic sectors performance (airlines, automobiles, utilities company, etc.) and the day-to-day of citizens (planning energy saving, transportation, purchase of durable goods, etc. )
+
+There are two main series of spot oil prices: West Texas Intermediate (WTI) and Brent. The longest available series of spot oil prices is WTI but is no longer seen as the global benchmark price for oil (EIA). Also, it is important point out that the real price of oil is the the most relevant measure for theories interpret shocks in international trade and macroeconomic impacts (Bank). This measure also is appropriate to analyze the consumers response of refined oil products, assuming they don't suffer from monetary illusion.
+
+Therefore, the main motivation for this work is to bring light to the current moment of rising and instability  of oil prices, knowing the impact of this commodity on economic and social well-being. 
+This project aims to answer the following questions:
+
+- Which estimated model better fits the Brent Oil prices series? 
+
+- Can we significantly predict the Brent oil prices for the next months?  
+
+
+## (iii) Brief literature review (a paragraph)
+
+Literature Review
+Several studies have proposed methods to improve oil price projections, varying from simple forecast rules to complex estimated models and models combinations that improves oil price forecast in some extent (Alquist et al. 2013, Baumeister and Kilian, 2014a, BANK od CANADA, IEAEUROPE). This studies say that the most common benchmark for oil prices forecasts  is provided by the random walk model without drift. This model implies that changes in the spot price are unpredictable, so the best forecast of crude oil price is simply the current spot price. Also it is known that the forecast accuracy of recent methods is sensitive to the sample period considered. It is difficult for a single forecasting approach outperform the no-change forecast (random walk) because oil price is physical commodity whose price(mainly in short term is determined by supply demand and level of inventories (Kilian and Vega 2011). However, forecasts can be improved  including information of economic activity  and  also geopolitic conflitcs (Alquist el al 2013, BANK of CANAD,AXIEN). Bank of Canada argues that time series regression models (like autoregressive and vector autoregressive) are more accurate than the random walk to forecast the real price of oil at short horizons. However, the accuracy gains tend to diminish at longer horizons and, beyond one year, no-change prediction returns to be the lowest MSPE. Moreover the extension of this reduction depends on the definition of the sample series.  Hence, looking for methods to improve the oil price forecast beyond the random walk can also be justified from theoretical and empirical perspectives.
+
+### (b) Data [1 page max]
+
+### (i) Describe the data set. Where is it from? How many observations, subjects, years, etc.?
+
+The data set used is: montlhy Europe Brent Spot Price FOB (USD per Barrel). It was collected from U.S. Energy Information Administration (EIA). The sample series is from May 1987 to February 2022. 
+The nominal Europe Brent Spot Price was deflated by the CPI for all urban consumer for all items in USA - city average (FRED, 2022). I used July 1990=100 as the base index to get the evolution of the real Brent crude oil price in real USD per barrel. I merged this data with the Geopolitical Risk Index (GPR), a measure of adverse geopolitical events based on a selected number of newspaper articles covering geopolitical tensions. The index was calculated counting the number of articles related to adverse geopolitical event in 10 different newspapers in each month. The articles are classified  according to the severity of the events. (cite SOURCE)
+
+In summary, the data set contains 419 monthly observations (from May-1897 to Feb-2022) of two variables: Europe Brent Spot Real Price and GPR. 
+
+
+```{r include=FALSE}
+df <- read.csv("/Users/mpign/OneDrive/Documentos/12-2020/Spring USU/Econometrics II/Books/R and data/Project/RBRTEmGPRReal.csv",row.names=1)
+```
+
+
+### (ii) Include a table showing the descriptive statistics (i.e., sample size, mean, max, min, standard deviation) of the variables. To the extent possible, make tables self contained with clearly-explained titles and extensive note.
+
+
+```{r include=FALSE}
+
+Wrate<-ts(df$Real.Brent,start = c(1987,5),frequency = 12)
+Wrate2<-ts(df$GPR,start = c(1987,5),frequency = 12)
+
+```
+
+
+```{r echo=FALSE, fig.height=10, fig.width=10}
+
+smm1<-summary(Wrate)
+smm2<-summary(Wrate2)
+range(Wrate)
+
+sd1<-sd(Wrate)
+sd2<-sd(Wrate2)
+var1<-var(Wrate)
+var2<-var(Wrate2)
+
+summa1<-round(rbind(c(smm1,sd1,var1),c(smm2,sd2,var2)),2)
+colnames(summa1)<-c("Min.","1st Qu.","Median"," Mean","3rd Qu.","Max.","St. Deviation","Var")
+lbtbl<-cbind(c("Brent (Real USD)","GPR index"),summa1)
+
+kable(lbtbl,booktabs=T,caption = "Summary Statistics",digits=4, row.names = F,escape = F,format="markdown") %>% kable_classic()
+
+
+```
+
+```{r echo=FALSE, fig.height=5, fig.width=7}
+par(mfrow=c(2,2))
+plot(Wrate,main="Series Plot",ylab="Brent (Real USD)")
+abline(reg=lm(Wrate~time(Wrate)))
+hist(Wrate,prob=TRUE,main="Histogram and Density",xlab="Brent (Real USD)")
+lines(density(Wrate))
+boxplot(Wrate,main="Boxplot",ylab="Brent (Real USD)")
+qqnorm(Wrate)
+qqline(Wrate)
+
+#qqPlot(Wrate)
+
+```
+
+
+
+Table x and Figure y shows the summary statistics of the data.  We can see the data plot accounting for a period of relative stability before the financial crisis in 2008, after that we see an increasing trend in oil prices alonng with an increase volatility. Histogram, density and Q-Q plot show that data doesn't behave as normal and boxplot shows the mean around 30 Real USD per barrel and few outliers beyond 70 USD.
+
+# (iii) Include gures/plots/visuals, if necessary.
+
+# (c) Empirical Analysis [3 pages max]
+
+# (i) In general, you should explain your empirical procedures in enough detail that someonecould replicate your work. Identification??
+
+The empirical procedures will follow the Box-Jenkins Methodology:
+We start with the identification procedures: determining the components of the series; whether the series is stationary or not and taking actions regarding this; and verifying the underlying process that generates the series. Next, The estimation procedures for the parameters of the model and doing the prediction/forecast.Finally, the diagnostics chacking for the model adequacy.
+
+```{r echo=FALSE}
+plot(stl(Wrate,s.window="periodic"))
+```
+
+
+We can see that the data presents a trend pattern (long term and relatively smooth pattern) across time. The change in time trend is much greater than the seasonal variation.There is no obvious seasonality. There is no clearly exponential pattern for log the data. The trend process is a mixing of linear and curved trend that is not constant across time, so it is difficult from here to suggest the order of difference and data transformation to be taken.  The residuals clearly doesn't look like random and more rigorous analysis is needed.
+
+```{r echo=FALSE, fig.height=5, fig.width=7}
+par(mfrow=c(2,2))
+acf(Wrate,main="ACF Brent (Real USD)",lag.max=48)
+pacf(Wrate,main ="PACF Brent (Real USD)",,lag.max=48)
+acf(diff(Wrate),main="ACF Brent (Real USD) differenced",lag.max=48)
+pacf(diff(Wrate),main="PACF Brent (Real USD) differenced",lag.max=48)
+
+
+adf1<-adf.test(Wrate,alternative="stationary",k=0)
+adf2<-adf.test(Wrate,alternative="stationary")
+adfd1<-adf.test(diff(Wrate),alternative="stationary",k=0)
+adfd2<-adf.test(diff(Wrate),alternative="stationary")
+str(adf1)
+
+adftbl<-cbind(c(round(adf1$statistic,3),adf1$parameter,round(adf1$p.value,3),adf1$alternative),c(round(adf2$statistic,3),adf2$parameter,round(adf2$p.value,3),adf2$alternative),c(round(adfd1$statistic,3),adfd1$parameter,round(adfd1$p.value,3),adfd1$alternative),c(round(adfd2$statistic,3),adfd2$parameter,round(adfd2$p.value,3),adfd2$alternative))
+
+adftbl<-cbind(c("Value","Num Lags","p-value","Alternative Hypothesis"),adftbl)
+colnames(adftbl)<-c("","Dickey Fuller Test","Augmented Dickey Fuller Test","Dickey Fuller Test","Augmented Dickey Fuller Test")
+kable(adftbl,booktab=T,row.names = F,caption="ADF tests",format="markdown")%>%kable_classic()%>%add_header_above(c(" "=1,"Raw data"=2,"Diff. data"=2))
+
+```
+
+
+The DickFuller tests fail to reject the non-stationary (unit-root) hypothesis - confirming the statements before. Going further on this, ACF presents persistent spikes (correlation) along the lags, suggesting a random walk process. Additionaly, PACF shows a first positive spike and a second negative significant spikes. The data suggests a random walk process mixing with an AR process of first or second order.  
+Differencing the data we solved the ACF persistent spikes, indicating a non-seasonal AR(1) because of the first spike remaining on PACF. There is not a seasonal pattern, the lags multiple of s are not clear. Because still remains one spike, a suggested model is arima(1,1,0). Without differencing is the plots shows an ARIMA (2,0,0). ADF reject non-stationarity hypothesis for differenced data, with the caveat that this test has low power between I(O) and I(1) series.
+
+# (ii) Write down the empirical model (and its extensions, if necessary) that you intend toestimate. Think about the purpose of your model. If you are trying to prove the existence of an effect, it is generally good to start with the simplest, most stripped-downmodel that will deliver your result. Later, you can do extensions to examine how generalthe result is.
+
+Selecting the empirical models, to validate the use of an ARDL model using the GPR as explanatory variable the sample did not pass the granger causality test with a p-value of 0.22. Whch means that we cannot reject the hypothesis that X does not cause Y in 5% level of tolerance. Besides the fact that geopolitical risks could influence oil prices (as literature says), its influence cannot contribute more for the prediction of the Brent Spot price than the oil price itself. 
+Still, with the previous information  I decided to estimate ARIMA (1,1,0), ARIMA(2,1,0), Random Walk ARIMA (0,1,0) - which literature establish as the benchmark - and Holt Winters exponential smoothing. First the estimation and prediction sample was separated. For the prediction sample we reserved the last 5 monthly observations. 
+
+
+```{r echo=FALSE}
+grangertest(x=Wrate2,y=Wrate)
+
+y1<-window(Wrate,end=c(2021,9))
+y2<-window(Wrate,start=c(2021,10))
+tail(Wrate)
+tail(y1)
+tail(y2)
+
+m1<-auto.arima(y1,ic="bic",seasonal=TRUE,stationary=FALSE,trace=TRUE)
+m2<-Arima(y1,c(2,1,0))
+m3<-Arima(y1,c(0,1,0))
+m4<-HoltWinters(y1)
+m41<-HoltWinters(x=y1,beta=FALSE,gamma=FALSE)
+
+m11.fcast<-forecast(m1,h=15)
+dfm11<-as.data.frame(m11.fcast)
+as.data.frame()
+library(DataEditR)
+
+#bol<-cbind(y1,Wrate,vm11m,vm11u,vm11d)
+#tail(Wrate)
+#bol2<-as.data.frame(bol)
+vm11_new <- data_edit(dfm11,save_as = "boltudo1.csv")
+#max(Wrate)
+write.csv(vm11_new)
+
+
+
+m21.fcast<-forecast(m2,h=15)
+m31.fcast<-forecast(m3,h=15)
+m41.fcast<-forecast(m4,h=15)
+
+is1<-accuracy(m1)
+is2<-accuracy(m2)
+is3<-accuracy(m3)
+is4<-accuracy(m4$fitted,y1)
+errtbl<-round(rbind(c(is1),c(is2),c(is3),c(is4)),2)
+errtbl<-errtbl[,-7]
+
+errftbl<-cbind(c("ARIMA(1,1,0)","ARIMA(1,1,1)","ARIMA(0,1,0)","HoltWint"),errtbl)
+colnames(errftbl)<-c("Models","ME","RMSE","MAE","MPE","MAPE","MASE")
+
+kable(errftbl,booktab=T,row.names = F,caption="ADF tests",format="markdown")%>%kable_classic()
+
+
+```
+
+```{r}
+
+oss1<-accuracy(m11.fcast,y2)
+oss2<-accuracy(m21.fcast,y2)
+oss3<-accuracy(m31.fcast,y2)
+oss4<-accuracy(m41.fcast,y2)
+
+errtbl1<-round(rbind(c(oss1[2,]),c(oss2[2,]),c(oss3[2,]),c(oss4[2,])),2)
+errtbl1<-errtbl1[,-7]
+errtbl1<-errtbl1[,-7]
+
+
+
+errftbl1<-cbind(c("ARIMA(1,1,0)","ARIMA(1,1,1)","ARIMA(0,1,0)","HoltWint"),errtbl1)
+
+colnames(errftbl1)<-c("Models","ME","RMSE","MAE","MPE","MAPE","MASE")
+
+kable(errftbl1,booktab=T,row.names = F,caption="ADF tests",format="markdown")%>%kable_classic()
+
+
+
+```
+
+
+
+
+
+
+```{r echo=FALSE}
+aictbl<-round(cbind(c(m1$aic,m1$bic),c(m2$aic,m2$bic),c(m3$aic,m3$bic)),2)
+
+str(m4)
+
+aictbl<-cbind(c("AIC","BIC"),aictbl)
+colnames(aictbl)<-c(" ","ARIMA(1,1,0)","ARIMA(2,1,0)","ARIMA(1,0,0)")
+
+kable(aictbl,booktab=T,row.names = F,caption="ADF tests",format="markdown")%>%kable_classic()
+```
+
+
+
+Comparing the models estimated we can see that ARIMA (1,1,0) and ARIMA (2,1,0) have very similar in-sample accuracy
+
+```{r echo=FALSE, fig.height=10, fig.width=10}
+
+m41<-HoltWinters(x=y1,beta=FALSE,gamma=FALSE)
+plot(m41)
+        
+par(mfrow=c(2,2))
+plot(m11.fcast, include=50,ylab="Observed / Fitted")
+lines(m1$fitted,col="red")
+lines(y2,col="black")
+lines(y1,col="black")
+legend("topleft",legend=c("ARIMA(1,1,0)","Brent (prediction sample)"),col=c("black","red"),lty=c(1,2),lwd=2,bty="n")
+plot(m21.fcast, include=50,ylab="Observed / Fitted")
+lines(m2$fitted,col="red")
+lines(y2,col="black")
+lines(y1,col="black")
+legend("topleft",legend=c("ARIMA(1,1,0)","Brent (prediction sample)"),col=c("black","red"),lty=c(1,2),lwd=2,bty="n")
+plot(m31.fcast, include=50,ylab="Observed / Fitted")
+lines(m3$fitted,col="red")
+lines(y2,col="black")
+lines(y1,col="black")
+legend("topleft",legend=c("ARIMA(1,1,0)","Brent (prediction sample)"),col=c("black","red"),lty=c(1,2),lwd=2,bty="n")
+plot(m41.fcast, include=50,ylab="Observed / Fitted")
+lines(m4$model$fitted,col=2)
+lines(y2,col="black")
+lines(y1,col="black")
+legend("topleft",legend="ARIMA(1,1,0)",col="black",lty=1,lwd=2,bty="n")
+
+
+
+```
+
+```{r}
+plot(m4,col=1:2,main="Holt-Winters data vs fitted")
+legend("topleft", c("data","fitted"), col=c(1,2), lty=1, bty="n")
+```
+
+
+Comparing the models estimated we can see that ARIMA (1,1,0) and ARIMA (2,1,0) have the lowest and very similar in-sample accuracy. Their forecasts fits entirely inside the 95% confidence interval, however ARIMA (1,1,0) has the lowest AIC and BIC. So, the model chosen for analysis is the ARIMA (1,1,0):
+$\triangle\hat{Y_t}=0.3604\triangle\hat{Y_{t-1}}$ 
+                    (0.0459)
+
+
+# (v) Include diagnostic checks, wherever applicable. Include gures/plots/visuals, if neces-sary. Discuss your ndings.
+
+```{r echo=FALSE, fig.height=5, fig.width=7}
+
+rm1<-m1$residuals
+par(mfrow=c(2,2))
+plot(m1$residuals,ylab=NULL,main= "Residuals")
+qqnorm(rm1,main="Normal Q-Q plot residuals")
+qqline(rm1)
+acf(rm1, main="ACF residuals")
+pacf(rm1, main="PACF residuals")
+
+rmsq<-rm1^2
+
+m <- matrix(c(1, 0, 1,  3, 2, 3, 2, 0), nrow = 2, ncol = 4)
+
+par(mfrow=c(2,2))
+acf(rmsq,main="ACF residuals^2")
+pacf(rmsq,main="PACF residuals^2")
+plot(rmsq,ylab=NULL,main= "Residuals^2")
+McLeod.Li.test(m1,rmsq,main="McLeod test for residuals^2") #no autoregressive conditional heteroskedasticity (ARCH) among the lags considered.
+
+
+#tsdiag(m1,gof.lag=36)
+oadf<-adf.test(rm1)
+obox<-Box.test(rm1, lag=36,type = c("Ljung-Box"))
+
+os<-shapiro.test(rm1)
+oad<-ad.test(rm1)  
+ocvm<-cvm.test(rm1) 
+olil<-lillie.test(rm1)
+ojb<-jarque.bera.test(rm1)
+
+oadf2<-adf.test(rmsq)
+obox2<-Box.test(rmsq, lag=36,type = c("Ljung-Box"))
+
+otbl<-round(c(obox$statistic,obox$p.value,obox$parameter,obox2$statistic,obox2$p.value,obox2$parameter),3)
+o<-round(c(oadf$statistic,oadf$p.value,NA,oadf2$statistic,oadf2$p.value,NA),3)
+otbl<-rbind(o,otbl)
+
+os2<-shapiro.test(rmsq)
+oad2<-ad.test(rmsq)  
+ocvm2<-cvm.test(rmsq) 
+olil2<-lillie.test(rmsq)
+ojb2<-jarque.bera.test(rmsq)
+
+numdig<-10
+
+nr<-c(oadf$method,obox$method,os$method,oad$method,ocvm$method,olil$method,ojb$method)
+sh<-c(round(os$statistic,2),round(os$p.value,numdig),NA,round(os2$statistic,2),round(os2$p.value,numdig),NA)
+ad<-c(round(oad$statistic,2),round(oad$p.value,numdig),NA,round(oad2$statistic,2),round(oad2$p.value,numdig),NA)
+cvm<-c(round(ocvm$statistic,2),round(ocvm$p.value,numdig),NA,round(ocvm2$statistic,2),round(ocvm2$p.value,numdig),NA)
+li<-c(round(olil$statistic,2),round(olil$p.value,numdig),NA,round(olil2$statistic,2),round(olil2$p.value,numdig),NA)
+jb<-c(round(ojb$statistic,2),round(ojb$p.value,numdig),round(ojb$parameter,0),round(ojb2$statistic,2),round(ojb2$p.value,numdig),round(ojb2$parameter,0))
+otbl<-rbind(otbl,sh,ad,cvm,li,jb)
+otbl<-cbind(nr,otbl)
+otblnm<-c("Test","Value","p-value","df","Value","p-value","df")
+colnames(otbl)<-otblnm
+
+kable(otbl,caption = "Tests on ARIMA (1,1,1) Residuals and Squared Residuals",booktabs=T,format="markdown",row.names = F)%>%kable_classic()%>%add_header_above(c(" "=1,"Residuals"=3,"Squared Residuals"=3))
+
+
+
+
+
+```
+
+Although the ARIMA(1,1,0) residuals passed on the ADF test, Ljung=Box test reject the no serial correlation hypothesis at 5% tolerance along with all the other tests of normality. The squared residuals also reject no serial correlation and normality in a more extreme level.  Therefore, we conclude that modeling this data needs to capture volatility clustering over time, putting structure on that.
+
+```{r echo=FALSE}
+vm1<-garchFit(~arma(1,0)+garch(1,0),data=diff(y1),cond.dist="norm",trace=TRUE)
+
+vm2<-garchFit(~arma(1,0)+garch(2,0),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm5<-garchFit(~arma(1,0)+garch(5,0),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm8<-garchFit(~arma(1,0)+garch(8,0),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm10<-garchFit(~arma(1,0)+garch(10,0),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm11<-garchFit(~arma(1,0)+garch(1,1),data=diff(y1),cond.dist="norm",trace=TRUE)
+
+vm12<-garchFit(~arma(1,0)+garch(1,2),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm21<-garchFit(~arma(1,0)+garch(2,1),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm55<-garchFit(~arma(1,0)+garch(5,5),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm85<-garchFit(~arma(1,0)+garch(8,5),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm101<-garchFit(~arma(1,0)+garch(10,1),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+vm1010<-garchFit(~arma(1,0)+garch(10,10),data=diff(y1),cond.dist="norm",trace=FALSE)
+
+# str(vm1)
+
+#ny<-c()
+#str(vm1010)
+
+vm1@fit$ics
+vm2@fit$ics
+vm5@fit$ics
+vm8@fit$ics
+vm10@fit$ics
+vm11@fit$ics
+vm12@fit$ics
+vm21@fit$ics
+vm55@fit$ics
+vm85@fit$ics
+vm101@fit$ics
+vm1010@fit$ics
+
+
+numdig<-10
+
+colm1<-round(rbind(vm1@fit$ics,vm2@fit$ics,vm5@fit$ics,vm8@fit$ics,vm10@fit$ics,vm11@fit$ics,vm12@fit$ics,vm21@fit$ics,vm55@fit$ics,vm85@fit$ics,vm101@fit$ics,vm1010@fit$ics),3)
+colm1<-colm1[,c(-3,-4)]
+names<-c("garch(1,0)","garch(2,0)","garch(5,0)","garch(8,0)","garch(10,0)","garch(1,1)","garch(1,2)","garch(2,1)","garch(5,5)","garch(8,5)","garch(10,1)","garch(10,10)")
+colm1<-cbind(names,colm1)
+colm1n<-c("ARCH-GARCH","AIC","BIC")
+colnames(colm1)<-colm1n
+kable(colm1,caption = "Tests on ARIMA (1,1,0) Residuals",booktabs=T,format="markdown",row.names = F)%>%kable_classic()
+
+```
+
+Estimated model: ARIMA(1,1,0)Garch(1,1):
+$\triangle\hat{Y_t} = - 0.365 + 0.232\triangle{Y_{t-1}}+e_t$
+                       (0.072)        (0.052)
+$e_t=\nu_t\sigma_t$; $\sigma^2_t = 0.152 + 0.424e^2_{t-1}+0.643\sigma^2_{t-1}$
+                                  (0.0948)   (0.0865)         (0.643)
+
+
+Trying several models we have ARIMA (1,1,0)-GARCH(1,1) the selected model with the lowest AIC and BIC (4.43 and 4.48 respectively).
+
+
+```{r echo=FALSE, fig.height=5, fig.width=7}
+sres1<-ts(vm11@residuals/vm11@sigma.t,start=c(1987, 5) ,frequency = 12)
+#sres1<-vm11@residuals/vm11@sigma.t
+sres12<-sres1^2
+
+par(mfrow=c(2,2))
+plot(sres1,ylab=NULL,main= "Std. Residuals")
+qqnorm(sres1,main="Normal Q-Q plot std. residuals")
+qqline(sres1)
+acf(sres1,main="ACF std. residuals")
+pacf(sres1,main="PACF residuals")
+
+
+
+```
+
+```{r fig.height=5, fig.width=7}
+sres12<-sres1^2
+layout(m)
+acf(sres12,main="ACF std. residuals^2")
+pacf(sres12,main="PACF std. residuals^2")
+plot(sres12,ylab=NULL,main="Std. residuals^2")
+
+#tsdiag(m1,gof.lag=36)
+oadf<-adf.test(sres1)
+obox<-Box.test(sres1, lag=36,type = c("Ljung-Box"))
+
+os<-shapiro.test(sres1)
+oad<-ad.test(sres1)  
+ocvm<-cvm.test(sres1) 
+olil<-lillie.test(sres1)
+ojb<-jarque.bera.test(sres1)
+
+oadf2<-adf.test(sres12)
+obox2<-Box.test(sres12, lag=36,type = c("Ljung-Box"))
+
+otbl<-round(c(obox$statistic,obox$p.value,obox$parameter,obox2$statistic,obox2$p.value,obox2$parameter),3)
+o<-round(c(oadf$statistic,oadf$p.value,NA,oadf2$statistic,oadf2$p.value,NA),3)
+otbl<-rbind(o,otbl)
+
+os2<-shapiro.test(sres12)
+oad2<-ad.test(sres12)  
+ocvm2<-cvm.test(sres12) 
+olil2<-lillie.test(sres12)
+ojb2<-jarque.bera.test(sres12)
+
+numdig<-10
+
+nr<-c(oadf$method,obox$method,os$method,oad$method,ocvm$method,olil$method,ojb$method)
+sh<-c(round(os$statistic,2),round(os$p.value,numdig),NA,round(os2$statistic,2),round(os2$p.value,numdig),NA)
+ad<-c(round(oad$statistic,2),round(oad$p.value,numdig),NA,round(oad2$statistic,2),round(oad2$p.value,numdig),NA)
+cvm<-c(round(ocvm$statistic,2),round(ocvm$p.value,numdig),NA,round(ocvm2$statistic,2),round(ocvm2$p.value,numdig),NA)
+li<-c(round(olil$statistic,2),round(olil$p.value,numdig),NA,round(olil2$statistic,2),round(olil2$p.value,numdig),NA)
+jb<-c(round(ojb$statistic,2),round(ojb$p.value,numdig),round(ojb$parameter,0),round(ojb2$statistic,2),round(ojb2$p.value,numdig),round(ojb2$parameter,0))
+otbl<-rbind(otbl,sh,ad,cvm,li,jb)
+otbl<-cbind(nr,otbl)
+otblnm<-c("Test","Value","p-value","df","Value","p-value","df")
+colnames(otbl)<-otblnm
+
+kable(otbl,caption = "Tests on ARIMA (1,1,0)-GARCH(1,1) Standardized Residuals",booktabs=T,row.names = F,format="markdown")%>%kable_classic()%>%add_header_above(c(" "=1,"St. Residuals"=3,"St. Squared Residuals"=3))
+
+```
+
+
+
+Now we observe in the graphs the standardizes resiauals behaving more closely to a normal distribution, also we have a improve on Box-Ljung test that does not reject the serial uncorrelated hypothesis in 95% confidence interval (p-value=0.184), the squared residuals fail to reject in a level even higher (p-value=0.74). 
+
+```{r echo=FALSE}
+vm11.predict<-predict(vm11,n.ahead=15,crit_val=0.95,nx=108)
+#vm11fore<-?forecast(vm11,h=10)
+#plot(vm11fore)
+#plot(vm11.predict)
+
+library(DataEditR)
+
+#bol<-cbind(y1,Wrate,vm11m,vm11u,vm11d)
+#tail(Wrate)
+#bol2<-as.data.frame(bol)
+#vm12_new <- data_edit(bol2,save_as = "boltudo.csv")
+#max(Wrate)
+#write.csv(vm12_new)
+
+vm11.predict
+vm11.predict$meanForecast+2*vm11.predict$standardDeviation
+vm11.predict$meanForecast-2*vm11.predict$standardDeviation
+#str(vm1)
+#str(vm1.predict)
+
+vm11m<-ts(vm11.predict$meanForecast,start = c(2021,10),frequency = 12)
+#str(vm1m)
+vm11u<-ts(vm11.predict$meanForecast+2*vm11.predict$standardDeviation,start = c(2021,10),frequency = 12)
+vm11d<-ts(vm11.predict$meanForecast-2*vm11.predict$standardDeviation,start = c(2021,10),frequency = 12)
+
+
+
+plot(diff(y1),ylab="diff(Real Brent Oil USD)",main="Forecast ARIMA (1,1,0)-Garch(1,1)")
+polygon(x=c(index(vm11u),rev(index(vm11u))),y=c(vm11d,rev(vm11u)),col="slategray1",border="slategray4")
+lines(diff(y2),col="red")
+lines(vm11m,col="blue")
+legend("bottomleft",inset=.05,cex=.4,legend=c("Oil Price","Oil Price (prediction sample)","ARIMA(1,1,1)+GARCH(9,1) predicted values"),col=c("black","red","blue"),lty=c(1,2,1),box.lty=0)
+
+
+
+
+```
+
+So, now we could estimate a robust model to predict oil prices in the next months. ARIMA (1,1,0)-Garch(1,1) fitted the data better than all the other models, included the random walk theory benchmark model. 
+Try to interpret arch garch model coeficients, inserir tabela de forecast com os valores convertidos, pode ser uma tabela com ARCH, ARCH GARCH e ARCH garch convertido sem intervalo de cofianca. And say:"for this analysis the 95% confidence interval is very important, because for this case can give us the maximum price variations inside this confidence for the predictions. However, to unfold the confidence interval from a differenced data we have to use delta method, which was not exposed in the course. 
+
+Falar sobre as previsoes para conccluir!!
+
+$\triangle\hat{Y_t} = - 0.365 + 0.232\triangle{Y_{t-1}}+e_t$
+                       (0.072)        (0.052)
+$e_t=\nu_t\sigma_t$; $\sigma^2_t = 0.152 + 0.424e^2_{t-1}+0.643\sigma^2_{t-1}$
+                                  (0.0948)   (0.0865)         (0.643)
+Conclusion:
+
+The investigation of the Real Brent Oil Prices showed us a non-stationary data that, following Box-Jenkins methodology, identified an ARIMA (1,1,0) as the best fitted model. Besides the model fitted wel the data and produced significant coefficient, doing the diagnostics test, we had strong strong evidence of serial autocorrelation and lack of normality in the residuals. Also the squared residuals showed  a strong variance (what correlation?). Therefore, we fitted an ARIma(1,1,0)GarCH(1,1) in data and the volality structure in the model could eliminate variation correlation* and is the model that better fits Real Brent oil prices series -besides the fact we could not eliminate lack of normality in the error term.  
+Evidences suggests that we could significantly predict Brent oil prices series. We have a variation range of .... in a confidence interval .... for ARIMA (1,1,0). To ARCH GARCH we have a predicted value for the next 10 months around... but without delta method we could not predict the interval for the best fitted model because model has a differenced component. 

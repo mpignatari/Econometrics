@@ -1,0 +1,272 @@
+---
+title: "HW 9 - Multiple Regression Model - OLS Asymptotics"
+author: "Marcelo Pignatari"
+date: "11/02/2021"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+\tableofcontents
+
+
+\newpage
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+```
+
+
+```{r include=FALSE}
+library(wooldridge)
+library(stargazer)
+library(dplyr)
+library(car)
+library(ggplot2)
+```
+
+# Problems
+
+## Question 1
+
+As risktol should be positively correlated with pctstck (higher tolerance for risk, higher investment in stock market), so \beta_2>0 and $\tilde{\beta_1}$ has a positive inconsistency.
+
+Since $plim\tilde{\beta_1}=\beta_1+\beta_2\delta_1$, $plim\tilde{\beta_1}=plim\beta_1+plim\beta_2\delta_1=\beta_1+plim\beta_2\delta_1$
+As $\beta_2>0$ and $\delta_1>0$ → $plim\beta_2\delta_1>0$.
+
+## Question 2
+
+### (i)
+
+$$ H_0: \beta_3=0$$
+$$ H_1: \beta_3\neq0$$
+
+### (ii)
+
+$\beta_1>0\,and\,\beta_2>0$. It expected that most populated and richer cities has highest rent rates.
+
+### (iii)
+
+The correct statement is: "A 10% increase in population is associated with about 0.66% increase in rent".
+
+### (iv)
+
+As t-stat = 56/17 = **`r 56/17`** > 3, and the tstat of $\alpha$=1%(critical value) is **`r qt(0.995,60)`**. Since t>c we reject $H_0$, i.e. we reject the assuption that that the student body relative to the population has no ceteris paribus effect on monthly rents.
+
+## Question 3
+
+### (i)
+
+$$Var(\hat{\beta_1}-3\hat{\beta_2})=E[\hat{\beta_1}-3\hat{\beta_2}+E[\hat{\beta_1}-3\hat{\beta_2}]^2]=E[((\hat{\beta_1}-E(\hat{\beta_1})+(-3\hat{\beta_2}-E[3\hat{\beta_2}))^2]=E[(\hat{\beta_1}-E(\hat{\beta_1})^2+(-3\hat{\beta_2}-E[3\hat{\beta_2}))^2+2(\hat{\beta_1}-E(\hat{\beta_1})(-3\hat{\beta_2}-E[3\hat{\beta_2}))$$
+$$=E[(\hat{\beta_1}-E(\hat{\beta_1})^2]+E[(-3\hat{\beta_2}-E[-3\hat{\beta_2}])^2]+2(\hat{\beta_1}-E(\hat{\beta_1})(-3\hat{\beta_2}-E[-3\hat{\beta_2}))=Var(\hat{\beta_1})+Var(-3\hat{\beta_2})+2Cov(\hat{\beta_1},-3\hat{\beta_2})=Var(\hat{\beta_1})+9Var(\hat{\beta_2})-6Cov(\hat{\beta_1},-3\hat{\beta_2})$$
+As $Var(\hat{\beta_1}-3\hat{\beta_2}) = Var(\hat{\beta_1})+9Var(\hat{\beta_2})-6Cov(\hat{\beta_1},-3\hat{\beta_2})$, then $se(\hat{\beta_1}-3\hat{\beta_2})=\sqrt{Var(\hat{\beta_1})+9Var(\hat{\beta_2})-6Cov(\hat{\beta_1},-3\hat{\beta_2})}$
+
+
+### (ii)
+
+$$t=\frac{\hat{\beta_1}-3\hat{\beta_2}-1}{\sqrt{Var(\hat{\beta_1})+9Var(\hat{\beta_2})-6Cov(\hat{\beta_1},-3\hat{\beta_2})}}$$
+
+### (iii)
+
+
+Given $\theta_1=\beta_1-3\beta_2$, we have that $\beta_1=\theta_1+3\beta_2$. Since $y=\beta_0+\beta_1x_1+\beta_2x_2+\beta_3x_3+u$, we can substitute $\beta_1$ in terms of $\theta$ on the equation:
+$y=\beta_0+(\theta_1+3\beta_2)x_1+\beta_2x_2+\beta_3x_3+u$
+$y=\beta_0+\theta_1x_1+3\beta_2x_1+\beta_2x_2+\beta_3x_3+u$
+$y=\beta_0+\theta_1x_1+\beta_2(3x_1+x_2)+\beta_3x_3+u$
+
+$y=\hat{\beta_0}+\hat{\theta_1}x_1+\hat\beta_2(3x_1+x_2)+\hat\beta_3x_3$
+
+With this transformation we can obtain $\hat{\theta_1},se(\hat{\theta_1})$ and test said hypothesis.
+
+# Question 4 
+
+## (i) 
+
+
+```{r}
+qt(0.9995,86) # 0,1% cv
+qt(0.995,86) # 1% cv
+qt(0.975,86) # 5% cv
+qt(0.95,86) # 10% cv
+round(-14.47/16.27,2)
+round((0.976-1)/0.049,2)
+```
+
+The first hypothesis test is $H_0:\beta_0=0$ and $H_1:\beta_0\neq0 $. 
+Since t-stat = |**`r round(-14.47/16.27,2)`**|<|1.66| t-stat of 10% critical value (the highest standard tolerance) we can't reject $H_0$.
+
+The second hypothesis test is $H_0:\beta_1=1$ and $H_1:\beta_1\neq1$
+
+Since t-stat = |**`r round((0.976-1)/0.049,2)`**|<|1.66| t-stat of 10% critical value (the highest standard tolerance) we can't reject $H_0$. Its even less significant.
+
+## (ii) 
+
+```{r}
+((209448.99-165644.51)/2)/(165644.51/86)
+qf(0.999,2,86)
+```
+
+
+The hypothesis test is $H_0:\beta_0=0\, and \,\beta_1=1$ $H_1: \beta_0\neq0\, and \,\beta_1\neq1$.
+
+$$F=\frac{(SSR_r-SSR_{ur})/q}{SSR_{ur}/(n-k-1)} = \frac{(209,448.99-165,644.51)/2}{165,644.51/86} = 11.3713$$
+Since |11.37|>7.5, we reject the null hypothesis overwhemingly even with critical F value at 0.1%.
+
+## (iii)
+
+```{r}
+
+qf(0.9,3,83)
+
+((0.829-0.820)/3)/((1-0.829)/83)
+  
+```
+  
+$$F=\frac{(R^2_{ur}-R^2_r)/q}{(1-R^2_{ur})/(n-k-1)} = \frac{(0.829-0.820)/3}{(1-0.829)/83} = 1.46$$
+Since |1.46|<2.15, we can't reject the null hypothesis even with tolerance F value at 10%.
+
+### (iv)
+
+We have heteroskedasticity violating MLR5 assumption. This means that we cannot estabilish a reliable distribution of probabilities for the coefficients and therefore we cannot have a reliable hypothesis testing. 
+
+## Computer Exercises
+
+## Question 5 
+
+### (i)
+
+```{r}
+data("k401ksubs")
+#head(k401ksubs)
+
+d2<-filter(k401ksubs,fsize==1)
+count(d2)
+head(d2)
+```
+There are 2017 single person households in the dataset.
+
+### (ii) 
+
+```{r}
+mrm1<-lm(nettfa~inc+age,d2)
+summary(mrm1)
+stargazer(mrm1,type = "text")
+```
+
+$$\widehat{nettfa}=-43.040+0.799inc+0.843age$$
+$R^2=0.119, n=2,017$
+
+Any additional thousand (1000) dollars in annual income predicts - on average and holding everything else constant - an increase in 799 dollars in net total financial assets.
+Any additional age an individual has predicts - on average and holding everything else constant - an increase in 843 dollars in net total financial assets. 
+
+Regarding the sign of the slope coefficients I am not surprised, it is expected that more income generates more wealth and the older the person is, more time she has to earn money and save money. 
+About the magnitude it is kind of surprising because it means that the overral population has a satisfactory capacity to save money in relation to their income and through the time.     
+
+### (iii)
+
+The intercept says that a person with no income that and just born (age 0) has a negative wealth of 43 (measure in 1000s) dollars. That is, people are born with a small debt. If you try hard maybe you can find a meaning, but is not interesting. 
+
+
+### (iv) 
+
+The hypothesis test is $H_0:\beta_2=1$ against $H_1: \beta_2<1$.
+```{r}
+t<-(0.843-1)/0.092
+t
+df<-2017-3
+pt(t,df)
+```
+
+P-value is 0.044, which means that the smallest significance level that  $H_0$ is still rejected is 4.4%. Therefore, we can't reject the null hypothesis at 1% significance level. 
+
+### (v)
+
+```{r}
+mrm2<-lm(nettfa~inc,d2)
+stargazer(mrm2,type = "text")
+mrm3<-lm(inc~age,d2)
+stargazer(mrm3,type = "text")
+```
+
+No, is very close. That must be because inc is not highly correlated with age, hence when we drop age the coefficient of income doesn't suffer much bias. 
+
+## Question 6
+
+### (i)
+
+```{r}
+data("discrim")
+#head(discrim)
+mrm4<-lm(log(psoda)~prpblck+log(income)+prppov,discrim)
+stargazer(mrm4,type = "text")
+
+```
+
+$$\widehat{log(psoda)}=0.073prpblck+0.137log(income)+0.380prppov$$
+$$R^2=0.087, n=401$$
+
+$\beta_1$ is statistically different from zero at the 5% level but not at the 1% of tolerance. 
+
+### (ii)
+
+```{r}
+cor(discrim$lincome,discrim$prppov,use="complete.obs")
+summary(mrm4)
+```
+
+The correlation between log(income) and prppov is -0.838. log(income) is statiscally significant at almost 0% tolerance level,  prppov is statiscally significant at 0.1% significance level. The p-values are 0.00000048 and 0.0044 respectively.
+
+### (iii)
+
+
+```{r}
+H0<-c("prpblck=0","prppov=0")
+linearHypothesis(mrm4,H0)
+
+```
+
+For sure, its highly significant almost in zero level. P-value is almost zero. 
+
+
+### (iv)
+
+```{r}
+mrm5<-lm(log(psoda)~prpblck+log(income)+prppov+log(hseval),discrim)
+stargazer(mrm5,type = "text")
+summary(mrm5)
+```
+
+log(hseval) coefficient means that an additional 1% unit in median housing value at a zipcode predicts - on average and holding everything else constant - an increase in 
+The p-value of log(hseval) is overwhelmingly different from zero, its value is practically zero for rejecting H0.
+
+### (v)
+
+In order to test the hypothesis $H_0:\beta_1=\beta_3$, it's necessary set $\theta_1=\beta_1-\beta_3$ and rewrite the model as:
+
+$$
+log(soda)=\beta_0+(\theta_1+\beta_3)prpblck+\beta_2lincome+\beta_3prppov+\beta_4lhseval+u
+$$
+$$
+log(soda)=\beta_0+\theta_1prpblck+\beta_2lincome+\beta_3(prppov+prpblck)+\beta_4lhseval+u
+$$
+```{r}
+mrm6<-lm(lpsoda ~ prpblck+lincome+I(prppov+prpblck)+lhseval,discrim)
+summary(mrm6)
+```
+
+
+
+
+Since the coefficient $\theta=0.04$, and $\theta=\beta_1-\beta_3$, we need to test the hypothesis $H_0:\theta=0$
+```{r}
+tstat6<-(mrm6$coefficients[2]-0)/0.15279
+ptst<-(1-pt(tstat6,396))*2
+ptst
+```
+
+Since the p-value for the two tail test, is 0.766, we fail to reject the null hypothesis that $H_0:\theta=0$ with $\alpha=1%$. In other words, we fail to reject that the effect of prpblck on psoda is the same as the effect of prppov on psoda.
+
+
+
+

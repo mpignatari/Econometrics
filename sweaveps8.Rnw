@@ -1,0 +1,283 @@
+\documentclass{article}
+\usepackage{pdflscape}
+\usepackage{booktabs}
+\author{Marcelo Pignatari}
+\title{Problem set 4}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\graphicspath{ {images/} }
+\usepackage{float}
+\usepackage{lipsum}
+\usepackage{multirow}
+\usepackage[table,xcdraw]{xcolor}
+\begin{document}
+
+\maketitle
+<<packages, echo=FALSE,results='hide',message=FALSE>>=
+library(astsa)
+library(tibble)
+library(knitr)
+library(xts)
+library(xtable)
+library(ggplot2)
+library(stargazer)
+library(tseries)
+library(nortest)
+library(fGarch)
+library(forecast)
+library(TSA)
+library(plm)
+
+@
+
+
+\section*{Problem 1}.
+\subsection*{a)}
+<<>>=
+df <- read.csv("/Users/mpign/OneDrive/Documentos/12-2020/Spring USU/Econometrics II/Books/R and data/PS4/norway.csv")
+#head(df)
+pn1<-plm.data(df,index=c("district","year"))
+#head(pn1)
+#summary(pn1)
+#str(df)
+@
+
+
+<<,message=FALSE>>=
+pols<-plm(log(crime)~d78+clrprc1+clrprc2,data=pn1,model="pooling")
+summary(pols)
+@
+
+<<,results='asis'>>=
+stargazer(pols,column.labels=c("Pooled OLS"),digits=3, 
+          float=TRUE,no.space = TRUE,table.placement = "H")
+@
+
+The estimated model showed that for every 1 \% point increase in the percentage of crime solvedin the prior year predicts - on average and holding everithing else constant - a decrease in 1.8\% in crimes per 1,000 people in the following year (this coefficient lacks significancy).
+
+Analougously, a 1\% point increase in the percentage of crime solved in two years prior predicts - on average and holding everithing else constant - a 1.7\% reduction in crimes per 1,000 people in the current year.
+
+<<>>=
+respols<-pols$residuals
+#plot(respols)
+pbgtest(pols)
+pdwtest(pols,alternative="two.sided")
+@
+
+Both Breusch-Godfrey test and Durbin-Watson test reject the no-serial correlation hypothesis in the composite error term. Hence, we cannot rely on the standard error coefficients, the estimated model is inefficient. 
+
+\subsection*{b)}
+
+<<,results='asis'>>=
+fe<-plm(log(crime)~d78+clrprc1+clrprc2,data=pn1,effect="individual",model="within")
+#summary(fe)
+fetwo<-plm(log(crime)~d78+clrprc1+clrprc2,data=pn1,effect="twoways",model="within")
+#summary(fetwo)
+
+stargazer(pols,fe,fetwo,column.labels = c("pooled ols","FE","FE 2"),digits=3, float=TRUE,no.space = TRUE,table.placement = "H")
+
+
+@
+
+
+There are differences between coefficients of Pooled OLS and FE and FE two effects model. The variable of crimes solved in previous period is not significant on FE models. On the other hand, crimes solved two periods behind is significant at 5\%. Additionally, the effects of d78 on crime is positive and larger for the FE as compared to the Pooled which is negative.
+
+We must test serial correlation for the FE model because this models aims to control only time invariant and time variant effects in the error term that are related with the explanatory variable i.e. assuming $Cov(X_{it},\nu_i)\ne0$ and $Cov(X_{it},\nu_t)\ne0$. But this not prevents that the remaining error term is serially correlated, so we have to test if $Cov(\zeta_{it},\zeta_{it-1})=0$. If so, we can affirm that the estimate coefficients are efficient.
+
+<<>>=
+pbgtest(fe)
+pdwtest(fe,alternative="two.sided")
+bptest(fe,studentize=FALSE)
+
+coeftest(fe, vcov=vcovHC(fe, cluster="group", method="arellano"))
+
+coeftest(fetwo, vcov=vcovHC(fetwo, cluster="group", method="arellano"))
+@
+
+The heteroskedasticity-robust standard errors are: 0.0538943, 0.0041434, 0.0045928 for coefficients d78, clrprc1, clrprc2 respectively for one way FE model.
+
+The heteroskedasticity-robust standard errors are: 0.0041434, 0.0045928 for coefficients clrprc1, clrprc2 respectively for two way FE model.
+
+\subsection*{c)}
+
+<<,results='asis'>>=
+rde<-plm(log(crime)~d78+clrprc1+clrprc2,data=pn1,
+effect="individual",
+model="random")
+stargazer(pols,fe,rde,column.labels = c("pooled ols","FE","random"),title="Panel regressions",digits=3, float=TRUE,no.space = TRUE,table.placement = "H")
+@
+
+<<>>=
+phtest(fe,rde)
+@
+
+The Hausman test rejects the hyposthesis of the time-invariant component being uncorrelated with the explainatory variables. Therefore, FE is the preferred model.
+
+\section*{2)}
+\subsection*{a)}
+
+Time invariant variables: educ (if person is old enough), black, hisp and $\nu_i$
+
+
+Time variant variables: exper (and $exper^2$), married, union, $\lambda_t$
+
+
+
+\subsection*{b)}
+<<,message=FALSE,results='asis'>>=
+
+df2 <- read.csv("/Users/mpign/OneDrive/Documentos/12-2020/Spring USU/Econometrics II/Books/R and data/PS4/wage.csv")
+#View(df2)
+pn2<-plm.data(df2,index=c("person","year"))
+#head(pn2)
+#summary(pn2)
+
+pols2<-plm(log(wage)~educ+black+hisp+exper+I(exper^2)+married+union+d81+d82+d83+d84+d85+d86+d87,data=pn2,model="pooling",index=c("person","year"),effect="individual")
+stargazer(pols2, column.labels=c("Pooled"),digits=3, 
+          float=TRUE,no.space = TRUE,table.placement = "H")
+
+@
+
+We cannot rely on standard errors, because Pooled OLS models ignores the serial correlation in the composite error term $\varepsilon_{it}$, therefore the estimators are inneficient. So if we test for heteroskedasticity the result will accuse that we cannot rely on standard errors. 
+
+\subsection*{c)}
+<<c,results='asis'>>=
+rde2<-plm(log(wage)~educ+black+hisp+exper+I(exper^2)+married+union+d81+d82+d83+d84+d85+d86+d87, data=pn2,index=c("person", "year"),effect="individual",model="random") 
+
+stargazer(pols2,rde2, column.labels=c("Pooled","RE"),digits=3, 
+          float=TRUE,no.space = TRUE,table.placement = "H")
+@
+
+
+The main estimates don't change in terms of significance but change in term of values. The random effect coefficients are slighly greater on educ,black, hisp and exper; and slightly smaller in married and union. On pooled OLS all time-fixed effects dummies are significant at least at 10\% confidence. On random effects only d87 is significant at 5\%.
+
+\subsection*{d)}
+
+<<fe2, results='asis'>>=
+
+fe2<-plm(log(wage)~educ+black+hisp+exper+I(exper^2)+married+union+d81+d82+d83+d84+d85+d86+d87,data=pn2,model="within",index=c("person","year"),effect="twoways")
+
+stargazer(rde2,fe2, column.labels=c("RE","FE"),digits=3,float=TRUE,no.space = TRUE,table.placement = "H")
+
+@
+
+
+
+There are two parameters that appear in the model as a product. This includes exper and exper squared. Since we used deviations for the mean and exper appears in the model and as a product as well, exper could not be estimated individually because we already included exper squared. Such a model is said to be parameter redundant.
+
+Comparing to random effects estimates, the coefficient value of married reduced and lost significance - from 1\% to 5\% level. Union premium only reduced in value but not in significance.
+
+\subsection*{e)}
+
+<<fe2.interchunck, results='asis'>>=
+
+fe2.inter<-plm(log(wage)~educ+black+hisp+exper+I(exper^2)+married+union+d81:educ+d82:educ+d83:educ+d84:educ+d85:educ+d86:educ+d87:educ,data=pn2,model="within",index=c("person","year"),effect="twoways")
+
+stargazer(fe2.inter, column.labels=c("FE"),digits=3, float=TRUE,no.space = TRUE,table.placement = "H")
+
+@
+No, we can say that this effect is decreasing over time.
+
+
+\subsection*{f)}
+<<r,results='asis'>>=
+
+fe2.dyn<-plm(log(wage)~educ+black+hisp+exper+I(exper^2)+married+union+lead(union,1),data=pn2,model="within",index=c("person","year"),effect="twoways")
+
+stargazer(fe2.dyn, column.labels=c("FE"),digits=3,float=TRUE,table.placement = "H")
+@
+
+Yes, is significant at 5\% level.
+
+\section*{3)}
+
+\subsection*{a)}
+
+The main purpose of the article is to refute the results of Glaser et. al (2004). This work argues that changes in education relates to changes in the level of democracy, based on an individual fixed effect model. This article tried to verify more rigorously this relationship running additional models to this relationship.
+
+\subsection*{b)}
+
+This article shows that evidences on education affecting political development (improvements in democracy and other political institutions) are not significant when controlling for time fixed effects as well -  beyond individual effects taking account for within variation. So inferences about the cross sectional relationship between education and democracy is not right because in reality this relationship is driven by ommited factors that influence both education and democracy.  
+
+They show that this lack of relationship is highly robust to different econometric techniques, to estimation in different samples and the inclusion of different sets of covariates. This results persists not only in relation to democracy but also for other measures of political institutions.
+
+\subsection*{c)}
+
+The base sample is an unbalanced panel from 1960-2000 with data at 5 years interval when the starting date is 1965 on the dependent varianble with 1960 (associated t-1) on the independent variables. There
+
+Variables:
+
+Average years of schooling in the total population of age 25 and above - ranging from 0.04 to 12.18 years.
+Age structure - fractions of  the population in five different age ranges - source Acemoglu el at. 2004.
+Median age of population
+Log of the population
+GDP per capita
+
+Dependent variable model Model 1
+Augmented Freedom House Politica Rights index - ranging bewteen 0 and 1.
+
+Number of observations: 765 on Pooled OLS and fixed effects OLS; 667 on (iii); 746 on (iv controling for aging structure and population fixed effects); 652 (v GMM), 684 (vi - controlling for GDP per capita), 595 (vii - GMM), 676 controlling for all FE (vii) and 589 (GMM controlling for all).
+
+
+Dependent variables in Table 2
+Constraint on the Executive from Polity
+Autocracy Index from Polity
+Democracy Index from Polity
+Autocracy Index - source Przeworski et al. (2000).
+
+Number of observations: 499 in (i),(ii) and (iii) and 349 on (iv).
+
+\subsection*{d)}
+
+$d_{it}=\alpha d_{i,t-1}+\gamma s_{i,t-1}+\mu_t+\nu_{it}$
+
+This is a pooled OLS model with a lagged value and time fixed effect dummies $\mu_t$.
+The model does not control for individual fixed effects, the long run differences across countries, i.e. the cross-country differences will be used to estimate the effect of education on democracy. Therefore omitted factors that impact both variables in long run won't be isolated leading to spurious $\gamma$. He then assumes that $Cov(\nu_{it},s_{i,t-1})\ne0$ and $Cov(\nu_{it},d_{it})\ne0$ which violates the main assumption of unbiasedeness of pooling models. This assumption is very realistic since there are several factors that could impact education and democracy, such as: income, cultural particularities of the countries, history factors like being colonized and slaved before, having a dictatorship history etc.
+
+
+\subsection*{e)}
+
+$d_{it}=\alpha d_{i,t-1}+\gamma s_{i,t-1}+\mu_t+\delta_i+\nu_{it}$
+
+The model is the same as before but also controls for country fixed effects $\delta_i$.
+Paper assumes that the regressor $d_{i,t-1}$ is mechanically correlated with $u_{is}$ for $s<t$, which means that standard fixed-effect estimation is not consistent in panels with a short time dimension. So this assumption is also plausible because we have only 7 times dimensions, therefore $Cov(d_{i,t-1},u_{is})\ne0$ and strictly exogeneity implies biased and incsonsistent estimators. 
+
+\subsection*{f)}
+
+The lagged value $d_{i,t-1}$ was include to capture persistence in democracy, i.e. assuming increasingly democracy effect when country was highly democratic before and vice-versa. Indeed this make sense, because a country that demonstrates a pattern of increasingly democracy in its history can become more democratic in some point of time just because it is a solid process that develops by inertia in that society. 
+The placement of this lagged variable can also capture mean reverting dynamics when democracy score tends to comeback to some equilibrium value. This is also true, given that democracy levels can oscillate around a democracy equilibrium level that persisted for many years - as example we have the recently threatens to democracy that US went through last year, after a long period of consolidated democracy. 
+Capturing these effects enhances the prediction power of the model controlling for an explanatory variable that was unobserved before.
+
+\subsection*{g)}
+
+
+\begin{table}[H]
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|c|c|c|}
+\hline
+Model               & Limitations                                                                                                                                                                                                                                                                                                                                                                   & Strengths                                                                                                                                                              \\ \hline
+Pooled OLS          & \begin{tabular}[c]{@{}c@{}}Accounts for $Cov(\nu_{it},X_{it})=0$ which is a very strong assumption. \\ Because of that and the fixed effects not being controlled it is very likely that we will end up with a biased estimator. \\ Even though this assumption is verified, the OLS estimator is still inefficient and robust standard errors are needed.\end{tabular} & Appropriated for exogenous cross sectional effects.                                                                                                                    \\ \hline
+Fixed Effects model & \begin{tabular}[c]{@{}c@{}}Because of the lagged term of explained variable is an explanatory variable in the model, it demands that we have a \\ sufficiently high number of time dimension for consistent estimators. Also this model does'nt guarantee lack of \\ heteroskedasticuty and serial correlation.\end{tabular}                                                  & Allows the violation of the strong hypothesis of strict exogeneity.                                                                                                    \\ \hline
+Aurellano-Bond GMM  & \begin{tabular}[c]{@{}c@{}}We can have overidentification when exists more instruments than endogenous explanatory variables. \\ So we need to test if the instruments are valid. Also, for first differenced variables, we need compute \\ lagged differences as well for to improve the instruments.\end{tabular}                                                           & \begin{tabular}[c]{@{}c@{}}More efficiency for lag (dynamic) panel model's estimators, \\ introducing more lag variables to act as instrumental variable.\end{tabular} \\ \hline
+\end{tabular}%
+}
+\end{table}
+
+
+\subsection*{h)}
+
+\subsubsection*{i)}
+Gdp was transformed in log GDP due to the large discrepancies regarding GDP per capita across countries. So, transforming the log reduces the variance of the data and facilitate the analysis. 
+The rationale to use it is that the per capita GDP in a period can influence democracy in the after period. It means that increases in income can causes people be more informed and more politicized, leading to a improvement in political institutions.
+
+\subsubsection*{ii)}
+
+Time variant bias can be created ommiting $\mu_t$, this bias can be related to a increase trend in education and democracy at the world level. 
+
+\subsubsection*{iii)}
+
+Time fixed effects are indeed an omitted endogenous component determining the evolution of democracy across countries. It implied that much of the education effect on democracy captured in the model without time indicators actually is an omitted error effect that influences both education and democracy. Which means that the former model suffer from ommited variable bias. Therefore, inserting time indicators makes education coefficient insignificant. Hence, we cannot conclude that exists evidence that improvements in education can cause democracy levels increase.
+
+
+\end{document}
+

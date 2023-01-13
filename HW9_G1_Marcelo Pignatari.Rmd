@@ -1,0 +1,132 @@
+---
+title: "HW 10 - Qualitative Regressors, Part 1"
+author: "Marcelo Pignatari"
+date: "11/22/2021"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+\tableofcontents
+
+
+\newpage
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+```
+
+
+```{r include=FALSE}
+library(wooldridge)
+library(stargazer)
+library(dplyr)
+library(car)
+library(ggplot2)
+```
+
+# Problems
+
+## Question 1
+
+### (i)
+
+The coefficient on variable cigs means that every additional average number of cigarettes smoked per day on pregnancy - on average and holding everything else constant - is associated with a decrease of 0.4% in birth weight. Hence, smoking 10 more cigarettes per day predicts a decrease effect of 4% on the birth weight. 
+
+### (ii)
+
+A white child is predicted to weight 5.5% more than a non-white child, on average and holding all other factors fixed. T-stat is 4.23, which is an acceptable value for 5% significance (we have as rule of thumb 2.76). Hence, the effect is significant.
+
+### (iii)
+
+The estimated effect of motheduc predicts that an additional year of mother schooling - on average and holding everything else constant - corresponds to an increase in 0.3% on birth weight. The coefficient t-stat equals 1, which is a very low value to be considered statistically significant.
+
+### (iv)
+
+We cannot compute this joint significance because we have different number of observations in each model. The second model uses less observations because motheduc or fatheduc are missing in some observations For computing F-statistic we have to apply the F-static formula that includes the $R^2$ of the restricted and unrestricted models, taking into account that both models have the same number of observations. We would reestimate de $R^2$ of the first equation using the same number of observations of the second one. 
+
+## Question 2
+
+### (i) 
+
+hsize is statistically significant (t-stat = 5.039) and $hsize^2$ too (t-stat = -4.13). This is already a good signal, but for a solid evidence to include the squared variable is comparing the adjusted $R^2$ between the equations with and without $hsize^2$.
+
+The optimal high school size from the equation is given by $$\frac{\partial\widehat{sat}}{hsize}=19.3-4.79hsize=0→hsize=19.3/4.79=4.03$$
+
+### (ii)
+
+For non-black females we have that black = 0 on the regression and the the coefficient of female computes the estimated difference in SAT score between nonblack females and nonblack males. Therefore, we have a estimated difference of -45.9, i.e on average and holding everything else constant, non-black women are predicted to have 45.09 score lower than non-black man. The t-statistic of the coefficient female is 10.5, very high, which mean that the estimated difference is highly significant. 
+
+### (iii)
+
+Considering female=0, the $black$ coefficient on the regression computes the estimated difference in $sat$ between black and non-black males. This means that black males have an estimated SAT score, on average and holding everything else constant, 169.81 lower than non-black males. The t-stat of this coeffient is -13.3, so we easily reject the hypothesis that there is no difference between non-black and black males score. 
+
+### (iv)
+
+We have to plug female = 1 on the equation and compute the effect:
+
+$$=-169.81black+62.31black=-107.5black$$
+Which means that that estimated SAT difference between black females is 107.5 less than non-black females. 
+
+We cannot do the test of statiscally significance because this effect depends on two coefficients. One way to do that is to use dummy variables for multiple categories, for three of four possible categories and set non-black females as the benchmark. Then we run the regression and we can find the t-statist of the estimated difference between black and non-black females SAT scores. 
+
+## Question 3
+
+### (i)
+
+```{r}
+data("wage2")
+mrm1<-lm(log(wage)~educ+exper+tenure+married+black+south+urban,wage2)
+stargazer(mrm1,type = "text")
+summary(mrm1)
+```
+
+$\widehat{log(wage)}=5.395+0.065educ+0.014exper+0.012tenure+0.199married-0.188black-0.091south+0.184urban$
+                            (0.006)    (0.003)    (0.002)     (0.039)      (0.038)    (0.026)   (0.027)
+
+$$n=935, R^2=0.253,\bar{R}^2=0.247$$
+The regression estimated that black people - on average and holding everything else constant - have a wage 18.8% lower than non-black people. 
+Tstat of black coefficient is -4.95, hence unfortunately this difference is highly statistically significant.
+
+
+
+### (ii)
+
+
+```{r}
+data("wage2")
+mrm2<-lm(log(wage)~educ+exper+tenure+married+black+south+urban+I(exper^2)+I(tenure^2),wage2)
+stargazer(mrm2,type = "text")
+summary(mrm1)
+linearHypothesis(mrm2,c("I(exper^2)=0","I(tenure^2)=0"))
+```
+The p-value is 22.6%. As 22.6%>20% we can say taht the coefficients are jointly statistically insignificant at 20% level.
+
+
+### (iii)
+
+```{r}
+data("wage2")
+mrm3<-lm(log(wage)~educ+exper+tenure+married+black+south+urban+educ:black,wage2)
+stargazer(mrm3,type = "text")
+summary(mrm3)
+```
+
+```{r}
+linearHypothesis(mrm3,"educ:black=0")
+```
+The coeffient of the interact between educ and black is -0.023. So the wage return to another year of education - on average and holding everything else fixed - is estimated to is about 2.3% lower for black people than for non-black people. Therefore, the t-statistic of the interaction factor educ:black is -1.15 too low for be considered significant. The F-test of the significance of this coefficient for the model also tells the same (p-value of 0.26).
+
+### (iv)
+
+
+```{r}
+
+mrm4<-lm(log(wage)~educ+exper+tenure+south+urban+married:black+I((1-married)*black)+I((1-married)*(1-black)),wage2)
+stargazer(mrm4,type = "text")
+summary(mrm4)
+
+```
+
+The estimated coefficients of the model points that married black people have a predicted wage - on average and holding everything else constant - 17.9% lower than married non-black people. 

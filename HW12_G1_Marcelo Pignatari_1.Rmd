@@ -1,0 +1,214 @@
+---
+title: "HW 12 - Heteroskedasticity"
+author: "Marcelo Pignatari"
+date: "11/27/2021"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+\tableofcontents
+
+
+\newpage
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+```
+
+
+```{r include=FALSE}
+library(wooldridge)
+library(stargazer)
+library(dplyr)
+library(car)
+library(ggplot2)
+library(lmtest)
+library(effects)
+
+```
+
+# Problems
+
+## Question 1
+
+### (i)
+
+
+1. F 2.V 3.V 4.F
+
+
+## Question 2
+
+$$h(x)=inc^22→\sqrt{h}=inc$$
+Then the transformed equation is:
+
+$$beer/inc=\beta_0/inc-\beta_1+\beta_2price/inc+\beta_3educ/inc+\beta_4female/inc+u/inc$$
+
+## Question 3
+
+False. Here CLM 4 is violated because we have bias, so both OLS and WLS will be biased. WLS might be more efficient but on average its estimate is also off and biased. 
+
+## Question 4
+
+### (i)
+
+n-k-2
+
+### (ii)
+
+Because regression $R^2$ has more independent variables (k+1). We don't impose any functional form, then $\hat{u}$ is linear in $\hat{y}$ and less strict.
+
+
+### (iii)
+
+$F=\frac{R^2\hat{u}^2}{(1-R^2)\hat{u}^2/(n-k-1)}$. The equation don't say nothing about df and k, only about $R^2$. Because an the F-statistic for this test relies on both the R^2 value AND the degrees of freedom, the p-value may be larger OR smaller in the hybrid test than the BP or White test.
+
+### (iv)
+
+It is not a good idea, it will cause perfect colinearity in the model.
+
+# Computer exercises
+
+## Question 5 
+
+### (i)
+
+$Var(u/x) = \beta_0 + \beta1 male + e$
+
+$E(U^2/X) : u (hat) ^2 ~ male$
+
+### (ii)
+
+$u ̂^2 = 0 + 0male$
+Because the sign of the coefficient on male is negative, women have a higher estimated variance than men.
+
+### (iii)
+
+```{r}
+data(sleep75)
+df<-sleep75
+hist(sleep75$sleep)
+reg <- lm(sleep ~ totwrk + educ + age + I(age^2) +yngkid + male,df )
+stargazer(reg, type='text')
+u_hat <- resid(reg)
+reg_resid <- lm(I(u_hat^2) ~ male, df)
+stargazer(reg_resid, type='text')
+```
+```{r}
+bptest(reg)
+
+```
+
+The test statistic for the hypothesis $H_0:δ_1=0$ is a t-statistic = -28/27  = 1.037.
+The p-value for this test statistic more than 1, so we can not reject the null hypothesis of a different variance for men and women.
+
+## Question 6
+
+### (i)
+
+
+```{r}
+data(hprice1)
+price <- lm(price ~ lotsize + sqrft + bdrms, hprice1)
+summary(price)$coefficients
+coeftest(price, vcov. = hccm(price, type = "hc0"))
+
+```
+
+
+The percent change when using robust standard errors is:
+* lotsize: -90.41%
+* sqrft: -30.82%
+* bdrms: 8.06%
+There is a sizeable percent difference between the standard errors and the robust standard errors for all three explanatory variables.
+For both lotsize and bdrms the change is large enough to impact the significance of the t-tests (at the 10% level).
+
+### (ii)
+
+```{r}
+lprice <- lm(log(price) ~ log(lotsize) + log(sqrft) + bdrms, hprice1)
+summary(lprice)$coefficients
+coeftest(lprice, vcov. = hccm(lprice, type = "hc0"))[,2]
+
+```
+
+The percent change when using robust standard errors is:
+* log(lotsize): -5.85%
+* log(sqrft): -9.24%
+* bdrms: -8.59%
+There are still sizeable differences between the standard errors and the robust standard errors, but in this case, none of the differences impacts the significance of the t-tests.
+
+
+### (iii)
+
+Log transformations could fix the heteroskedasticity.
+
+## Question 7
+
+### (i)
+
+```{r}
+data(vote1)
+df2 <- vote1
+reg1 <- lm(voteA ~ prtystrA + democA + lexpendA + lexpendB, df2)
+stargazer(reg1, type = 'text')
+bptest(reg1)
+u_hat <- resid(reg1)
+summary(lm(u_hat^2~prtystrA + democA + lexpendA + lexpendB, df2))  
+```
+  
+Breusch-Pagan test:
+•	F-statistic = 2.33
+–	p-value = 0.05806
+•	LM statistic = 9.093
+–	p-value = 0.05881
+
+
+### (ii)
+
+White test
+
+```{r}
+
+y_hat <- predict(reg1)
+bptest(reg1, ~ y_hat + I(y_hat^2))
+summary(lm(u_hat^2 ~ y_hat + I(y_hat^2)))
+
+```
+
+White test
+•	F-statistic = 2.786
+–	p-value = 0.0645
+•	LM statistic = 5.49
+–	p-value = 0.06425
+
+## Question 8
+
+### (i)
+
+```{r}
+data(k401ksubs)
+reg3<-lm(e401k~inc+I(inc^2)+age+I(age^2)+male,k401ksubs)
+stargazer(reg3,type="text")
+bptest(reg3)
+coeftest(reg3)
+coeftest(reg3,vcov=hccm(reg3,type="hc0"))
+
+```
+
+The differences between the OLS standard errors and the robust standard errors are very small. There is no important differences.
+
+### (ii)
+```{r}
+y_hat<-predict(reg3)
+range(y_hat)
+h_hat<-y_hat*(1-y_hat)
+range(h_hat)
+w=1/h_hat  
+reg4<-lm(e401k~inc+I(inc^2)+age+I(age^2)+male,weights= w,k401ksubs)
+stargazer(reg3,reg4,type="text")
+```
+
+OLS seems to overestimate the standard errors but in a insignificant proportion. Anyhow, WLS is better for significancy, using corrected standard errors the coefficients are going to be more consistent.

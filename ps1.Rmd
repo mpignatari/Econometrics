@@ -1,0 +1,270 @@
+---
+title: "Problem Set 1"
+author: "Marcelo Pignatari"
+date: "01/26/2022"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+\tableofcontents
+
+
+\newpage
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+```
+
+
+```{r include=FALSE}
+library(astsa)
+library(tibble)
+library(knitr)
+library(xts)
+library(xtable)
+```
+
+# R programming exercises
+
+## 1.
+```{r}
+sqrt(729)
+
+```
+
+## 2.
+```{r}
+a<-1947.0
+
+```
+
+## 3.
+```{r}
+b<-c(1,2,3,4,5,6)
+class(b)
+
+```
+
+## 4.
+```{r}
+c<-c(1,"a",2,"b")
+
+```
+### a)
+```{r}
+class(c)
+
+```
+### b)
+```{r}
+length(c)
+
+```
+### c)
+```{r}
+c[c(2,3)]
+
+```
+
+## 5.
+```{r}
+d<-c(1,2,NA,4,5,6,NA,NA,NA,10)
+d[-c(3,7,8,9)]
+d[!is.na(d)]
+
+```
+
+## 6.
+```{r}
+e<-function(x){exp(x)*cos(x)}
+f<- c(e(seq(3,6,0.1)))
+f
+x<-seq(3,6,by=.1)
+f1<-exp(x)*cos(x)
+f1
+```
+
+## 7.
+```{r}
+g<-function(x){x^3+4*x^2} 
+h<-sum(g(seq(10,100,1)))
+g1<-seq(10,100,1)
+h1<-sum(g1^3+4*g1^2)
+h
+h1
+```
+## 8.
+```{r}
+x<- sample(0:999,size=250,replace = TRUE)
+y<- sample(0:999,size=250,replace = TRUE)
+
+```
+
+### a)
+```{r}
+y[y>600]
+
+```
+### b)
+```{r}
+length((y[y>=max(y)-200]))
+
+```
+
+### c)
+```{r}
+e<-sqrt(abs(x-mean(x)))
+e
+
+```
+
+### d)
+```{r}
+x1<-c(0,x) 
+y1<-c(y,0)
+g4<-(y1-x1) 
+g4
+
+i<-y[y=seq(2,length(y),1)]-x[x=seq(1,length(x)-1,1)]
+i
+
+```
+
+## 9.
+```{r}
+coeffs<-sample(-20:20,size=3,replace=TRUE)
+
+```
+
+### a)
+```{r}
+print(coeffs)
+
+length(coeffs)
+
+```
+
+### b)
+```{r}
+q<-seq(-3,3,length.out=200)
+q
+
+```
+
+### c)
+```{r}
+z<-function(x){coeffs[1]+coeffs[2]*x+coeffs[3]*x^2}
+z(q)
+z1<-coeffs[1]+coeffs[2]*q+coeffs[3]*q^2
+
+```
+
+### d)
+```{r}
+plot(q,z(q))
+
+```
+
+## 10.
+$$1/8-1+6-1=33/8$$
+
+## 11.
+```{r}
+s<-matrix(rep(c(10,-5,10),15),nrow=15,ncol=3,byrow=TRUE)
+s
+
+s[,3]<-s[,1]+s[,2]
+s
+
+```
+
+## 12.
+```{r}
+t<-function(x1,x2){x1+x2}
+t
+t(7,8)
+
+```
+
+## 13.
+```{r}
+x1<-c(1,2,2,3,4,5,6,2,2,2,2)
+beta<-function(x1,x2){sum(x1==x2)}
+beta(x1,2)
+
+length(which(x1==2))
+```
+
+## 14
+
+```{r}
+v<-c(1,2,3,6)
+csqt<-function(v){return(v^seq(1:length(v)))}
+csqt(v)
+
+```
+## 15
+```{r}
+ffunc<-function(v){return(ifelse(v<0,v^2+2*v+3,ifelse(v<2,v+3,v^2+4*v-7)))}
+inp<-seq(-3,3,length=100)
+
+asd<-ffunc(inp)
+
+plot(inp,asd)
+
+```
+
+# Theory
+
+## Problem 1
+
+Given $E(Y_t) = 0$ and $Var(Y_t)=\sigma^2$ for any t in T. 
+Because $Var(Y_t)$ is the second moment of the series we have: $Var(Y_t)=E[(Y_t-E(Y_t))^2]=E[(Y_t-0)^2]=E[Y_t]^2$
+
+## Problem 2
+
+$$\gamma_Y(s,t)=E[(Y_s-E(Y_s))(Y_t-E(Y_t))]=E[(Y_s-\mu_s)(Y_t-\mu_t)]=E[(Y_sY_t-Y_s\mu_t-Y_t\mu_s+\mu_s\mu_t)]=E[Y_sY_t]-E[Y_s]\mu_t-E[Y_t]\mu_s+E[\mu_s\mu_t)]=E[Y_sY_t]-\mu_s\mu_t-\mu_s\mu_t+\mu_s\mu_t=E(Y_sY_t) - \mu_s\mu_t$$
+
+## Problem 3
+
+```{r}
+
+tblnm<-c("$y_t$","$y_{t−1}$","$y_{t−2}$","$y_{t−3}$","$\\hat\\mu_Y(t)$","$y_t−\\hat\\mu_Y(t)$","$(y_t−\\hat\\mu_Y(t))^2$","$y_{t-1}-\\hat\\mu_Y(t)$","$(y_t-\\hat\\mu_Y(t))(y_{t-1}-\\hat\\mu_Y(t))$")
+
+x<-c(112,118,132,129,121,135,148,148,136,119,104,118)
+#xtbl<-cbind(rep(1949,12),c(112,118,132,129,121,135,148,148,136,119,104,118))
+xrnm<-c("Jan 1949","Feb 1949","Mar 1949","Apr 1949","May 1949","Jun 1949","Jul 1949","Aug 1949","Sep 1949","Oct 1949","NOv 1949","Dec 1949","Sum")
+
+xtbl<-ts(x,start=c(1949,1),frequency = 12)
+mu<-mean(xtbl)
+
+xtbl1<-cbind(xtbl,lag.xts(xtbl),lag.xts(xtbl,k=2),lag.xts(xtbl,k=3),rep(mu,12),xtbl-mu,(xtbl-mu)^2,lag.xts(xtbl)-mu,(xtbl-mu)*(lag.xts(xtbl)-mu))
+
+xtbl2<-as.data.frame(rbind(xtbl1,colSums(xtbl1,na.rm = T)))
+rownames(xtbl2)<-xrnm
+colnames(xtbl2)<-tblnm
+
+kable(xtbl2, booktab=T,digits=2)
+
+cov1<-sum(xtbl2[-NROW(xtbl2),9],na.rm = T)
+
+v<-sum(xtbl2[2:(NROW(xtbl2)-1),7],na.rm=T)
+
+v1<-sum(xtbl2[2:(NROW(xtbl2)-1),8]^2,na.rm = T)
+
+
+```
+
+Sample variance: $\frac{\sum ( y_t − \hat{\mu}_Y(t))^2}{T-1} = \frac{`r round((xtbl2[NROW(xtbl2),7]),2)`}{`r (sum(!is.na(xtbl2[,7]))-2)`}$= **`r (round(xtbl2[NROW(xtbl2),7]/(sum(!is.na(xtbl2[,7]))-2),2))`**  
+
+Sample autocovariance: $\frac{\sum_{t=2}^T (y_t-\hat\mu_Y(t))(y_{t-1}-\hat\mu_Y(t))}{T-1} = \frac{`r round((xtbl2[NROW(xtbl2),9]),2)`}{`r (sum(!is.na(xtbl2[,9]))-2)`}$=
+**`r (round(xtbl2[NROW(xtbl2),9]/(sum(!is.na(xtbl2[,9]))-2),2))`**   
+
+Sample autocorrelation: $\frac{\frac{\sum_{t=2}^T (y_t-\hat\mu_Y(t))(y_{t-1}-\hat\mu_Y(t))}{T-1}}{\sqrt{(\frac{\sum_{t=2}^T (y_t−\hat\mu_Y(t))^2 }{T-1})(\frac{\sum_{t=2}^T (y_{t-1}−\hat\mu_Y(t))^2}{T-1})}}$ = $\frac{`r round(cov1,1)`}{`r round(sqrt(v*v1),1)`}$ = 
+**`r round(cov1/sqrt(v*v1),3)`**.  
+
+
+
+

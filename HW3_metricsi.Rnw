@@ -1,0 +1,566 @@
+\documentclass{article}
+\usepackage{pdflscape}
+\usepackage{booktabs}
+\author{Marcelo Pignatari}
+\title{HW 3}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\graphicspath{ {images/} }
+\usepackage{float}
+\usepackage{lipsum}
+\usepackage{multirow}
+\usepackage[table,xcdraw]{xcolor}
+\usepackage{lscape}
+\usepackage{amsmath}
+\usepackage{wrapfig}
+\usepackage{wrapfig,lipsum,booktabs}
+\begin{document}
+
+\maketitle
+<<packages, echo=FALSE,results='hide',message=FALSE>>=
+library(ggplot2)
+library(lubridate)
+library(Hmisc)
+library(knitr)
+library(dplyr)
+library(xtable)
+library(astsa)
+library(fastDummies)
+library(reshape2)
+library(readr)
+library(plm)
+library("lmtest")
+library("sandwich")
+library(npsf)
+library(stargazer)
+library("AER")
+library(truncreg)
+library(corrplot)
+library(gridExtra)
+library("texreg")
+library(stargazer)
+library(rdrobust)
+library(rdd)
+
+@
+
+
+\section*{Theory}
+
+For a multinomial categorical outcome data when $Y_i \in {0,1,2,...,J}$ and a sharp RD design in which binary treatment $D_i$ is determined by the running variable $S_i \in S \subset {\rm I\!R}$ with a cuttoff $\bar{S}$ (assuming $S_i$ continuous), i.e. 
+
+$
+  D_i = \left \{
+  \begin{aligned}
+    &1, && \text{if}\ S_i \ge \bar{S} \\
+    &0, && \text{otherwise}.
+  \end{aligned} \right.
+$
+
+Let  $
+  Y_i = \left \{
+  \begin{aligned}
+    &Y_i(1), && \text{if}\ D_i = 1 \\
+    &Y_i(0), && \text{if}\ D_i = 0
+  \end{aligned} \right.
+$ 
+
+and $Y_i=D_iY_i(1)+(1-D_i)Y_i(0)$.
+
+As we are dealing with a categorical outcome variable, for all the j categories, the conditional outcome probability for the two groups (treatment and control) are:
+
+$P(Y_i(1)=j|S_i=s)=\mu_{+,j}(s)=\frac{exp(g_{+,j}(s))}{1+\sum_{j=1}^{J} exp(g_{+,j}(s)}$
+
+$P(Y_i(0)=j|S_i=s)=\mu_{-,j}(s)=\frac{exp(g_{+,j}(s))}{1+\sum_{j=1}^{J} exp(g_{+,j}(s)}$
+
+The last equation of the both lines above is MNL transformation for the treatment and control groups to allow flexible functional forms of g's and facilitates estimation of outcome probabilities inside the unit interval. 
+
+The function $\mu$ is continuous and the summation of probabilities in each mutually exclusive category, keeping everything else constant is 1: $\sum_{j=0}^{J} \mu_{+,j}(s) =1$ and $\sum_{j=0}^{J} \mu_{-,j}(s) =1$, for any $s \in S$.
+
+Here we arrive in the treatment effect identification, which object of interest is $\alpha_{RD}$ defined at the cutoff point as:
+
+$\alpha_{RD}=\lim\limits_{s\uparrow\bar{S}}P(Y_i = j|S_i = s) - \lim\limits_{s\downarrow\bar{S}}P(Y_i = j|S_i = s)$, 
+for j categories (j=1,...,J) - not all categories J+1, because MNL is build referred to a baseline category logit. 
+
+Now, we consider that the sample of subjects in the small neighborhood of cutoff $\bar{S}$ is essetially the same (individuals above and below the cutoff are expected to be similar with the same dependent variable S, which approximate the assignment to that of RCT). Hence, we can obtain an estimate of the average treatment effect comparing the probabilities of belonging to category j in treatment and control, for units taking $S_i$ value at $\bar{S}$.
+
+The important point here is the RD assumption that conditional probabilities in treatment and control regions are continuous at the cutoff. Then, instead of 2 different averages (with a continuous outcome variable), the authors estimate 2 conditional probabilities functions at boundaries for each category j. Therefore, instead of an $\alpha_{RD}$ with an unique value, here $\alpha_{RD}=(\alpha_1,...,\alpha_j)$ is a vector of j categories, where the treatment effect is evaluated in each category and a hypothesis test is conducting to test their joint significance.   
+
+
+
+\section*{Application}
+\subsection*{Problem 1)}
+
+<<>>=
+
+load("C:/Users/mpign/OneDrive/Documentos/12-2020/Fall 2022 USU/Econometrics III/Lee2008.rda")
+colnames(Lee2008)<-c("margin","vote")
+df<-Lee2008
+df$d<-as.numeric(df$margin>0) #treatment indicator
+#head(df)
+#dim(df)
+
+@
+
+\subsubsection*{a)}
+
+<<>>=
+stargazer(df,type="text")
+
+@
+
+\subsubsection*{b)}
+
+<<out.width='3in'>>=
+par(mfrow=c(3,1))
+
+hist(df$margin,freq=FALSE,
+main="Histogram margin",
+xlab="margin")
+lines(density(df$margin))
+
+
+
+hist(df$vote,freq=FALSE,
+main="Histogram vote",
+xlab="vore")
+lines(density(df$vote))
+
+
+hist(df$d,freq=FALSE,
+main="Histogram d",
+xlab="d")
+lines(density(df$d))
+
+@
+
+Histogram of margin tells us that data distribution concentrates around 0, i.e. when the margin of victory was low. But looking in the extremes the tails aren't uniform, which excludes the possibility of a normal distribution. We have more data in the right tail than in the left tail, which means that there is more observations which party A wins over a large margin than party B wins over large margin. 
+
+Histogram of party vote share in the following election shows us similar shape with data slighlty less concentrated in the center, specially with more share of data distribution in the left tail, which in this case is around 0.
+
+The third histogram shows that the share of observations which party A wins the election is greater than the share when party B wins the election. 
+
+\subsubsection*{c)}
+
+<<,fig=TRUE,message=FALSE,echo=FALSE,out.width='3.5in'>>=
+
+plot(df$margin,df$vote,
+     xlab="Margin of victory, t",
+     ylab="Vote share, t+2",
+     main="Plot of Vote on Margin",
+     pch=20)
+abline(v=0,col=2,
+       lty=2,
+       lwd=1)
+
+@
+
+
+Looking to the graph we can see an evidence for discontinuity because, overall, it seems that although after the cutoff point relationship between x and y presents the same slope than before, this relationship turns out to manifest in another intercept. In other words, we see a jump (discontinuity) in the mean distribution of data points right after the cutoff. This discontinuity can be caused by the exogenous effect of the running variable and should be investigated. 
+
+\subsubsection*{d)}
+
+<<,results='asis',echo=FALSE,out.width='3in'>>=
+plt<-rdplot(y=df$vote,
+            x=df$margin,
+            c=0,
+            p=4,
+            #subset=s<=0.2&s>=-0.2,
+            kernel="epanechnikov",
+            title="Plot of E(Vote|Margin) on Margin",
+            y.label="Vote share, t+2",
+            x.label="Margin of victory, t")
+#summary(plt)
+
+
+@
+
+
+\begin{table}[!ht]
+    \centering
+    \begin{tabular}{|l|l|l|}
+    \hline
+        Number of Obs.               & 6558 & ~ \\ \hline
+        Kernel    &  Epanechnikov & ~ \\ \hline
+        ~ & Left cutoff & Right Cutoff \\ \hline
+        Number of Obs.                         & 2740 & 3818 \\ \hline
+        Eff. Number of Obs.              & 2642 & 3307 \\ \hline
+        Order poly. fit (p)                             & 4 & 4 \\ \hline
+        BW poly. fit (h)                         & 1 & 1 \\ \hline
+        Number of bins scale                             & 1 & 1 \\ \hline
+        ~ & ~ & ~ \\ \hline
+        Bins Selected                               & 87 & 145 \\ \hline
+        Average Bin Length                    & 0.011 & 0.007 \\ \hline
+        Median Bin Length                        & 0.011 & 0.007 \\ \hline
+        ~ & ~ & ~ \\ \hline
+        IMSE-optimal bins                               & 20 & 17 \\ \hline
+        Mimicking Variance bins                        & 87 & 145 \\ \hline
+        ~ & ~ & ~ \\ \hline
+        Relative to IMSE-optimal: & ~ & ~ \\ \hline
+        Implied scale                            & 4.35 & 8.529 \\ \hline
+        WIMSE variance weight                    & 0.012 & 0.002 \\ \hline
+        WIMSE bias weight                        & 0.988 & 0.998 \\ \hline
+    \end{tabular}
+\end{table}
+
+The table show that the cutoff separated 2740 in the left side and 3818 in the right side. The size of the optimal bandwidth (h) selection is 1, which generates 87 bins (and local averages) in the left side and 145 in the right side. The criteria used to optimize h was minimize MSE.
+
+The graph reduced the density of data points by local averages and shows us more clearly that indeed there is an evidence of discontinuity at the cutoff. The 4th order polynomial non-parametric function seems to fit better on the right side than on the left, which data is more sparse.  
+
+\subsubsection*{e)}
+
+<<>>=
+#Y=a*D+b1*(S-barS)+b2*D*(S-barS)+b3*(S-barS)^2+b4*D*(S-barS)^2+b5*(S-barS)^3+b6*D*(S-barS)^3+b5*(S-barS)^4+b6*D*(S-barS)^4+e
+
+res<-lm(vote~d+margin+I(d*margin)+I(margin^2)+I(d*margin^2)+I(margin^3)+
+          I(d*margin^3)+I(margin^4)+I(d*margin^4),
+        data=df)
+summary(res)
+
+@
+
+"d" coefficient treatment effect (incumbency advantage) is significant at 0.1 percent level. We also have significant effects in the slopes of some order degrees which indicates another not immediate effect of the incumbency advantage. However the estimation was done in the entire data without controlling covariates. We need to see if the effect is significative with distinct bandwiths around around a region very close to the cutoff point. 
+
+\subsubsection*{f)}
+
+<<,results='asis',echo=FALSE,out.width='3in'>>=
+df$pred<-predict(res)
+
+plot(df$margin,df$vote,
+     xlab="Margin of victory, t",
+     ylab="Vote share, t+2",
+     main="Plot of Vote on Margin",
+     pch=20,
+     col="Grey")
+df<-df[order(df$margin),]
+with(subset(df,margin<=0),lines(margin,pred,col="Blue"))
+with(subset(df,margin>0),lines(margin,pred,col="Blue"))
+abline(v=0,col=2,
+       lty=2,
+       lwd=1)
+
+@
+
+
+Parametric fit is similar to non-parametric fit. However, parametric model performs better in sparse regions compared to non-parametric.
+
+\subsubsection*{g)}
+
+<<>>=
+df2<-subset(df, margin>-0.8 & margin<0.8)
+df3<-subset(df, margin>-0.4 & margin<0.4)
+df4<-subset(df, margin>-0.1 & margin<0.1)
+
+res2<-lm(vote~d+margin+I(d*margin)+I(margin^2)+I(d*margin^2)+I(margin^3)+
+          I(d*margin^3)+I(margin^4)+I(d*margin^4),
+        data=df2)
+summary(res2)
+
+res3<-lm(vote~d+margin+I(d*margin)+I(margin^2)+I(d*margin^2)+I(margin^3)+
+          I(d*margin^3)+I(margin^4)+I(d*margin^4),
+        data=df3)
+summary(res3)
+
+res4<-lm(vote~d+margin+I(d*margin)+I(margin^2)+I(d*margin^2)+I(margin^3)+
+          I(d*margin^3)+I(margin^4)+I(d*margin^4),
+        data=df4)
+summary(res4)
+
+@
+
+
+As neighborhood range gets smaller, the value of treatment effect estimator "d" gets bigger and its standard errors loses significance - also gets bigger. Also, only in the 0.8 neighborhood the other parameters owns 5 percent level of significance.
+
+<<>>=
+df2$pred<-predict(res2)
+df3$pred<-predict(res3)
+df4$pred<-predict(res4)
+
+plot(df$margin,df$vote,
+     xlab="Margin of victory, t",
+     ylab="Vote share, t+2",
+     main="Plot of Vote on Margin",
+     pch=20,
+     col="Grey")
+df<-df[order(df$margin),]
+with(subset(df2,margin<=0),lines(margin,pred,col="Red"))
+with(subset(df2,margin>0),lines(margin,pred,col="Red"))
+with(subset(df3,margin<=0),lines(margin,pred,col="Blue"))
+with(subset(df3,margin>0),lines(margin,pred,col="Blue"))
+with(subset(df4,margin<=0),lines(margin,pred,col="Black"))
+with(subset(df4,margin>0),lines(margin,pred,col="Black"))
+
+abline(v=0,col=2,
+       lty=2,
+       lwd=1)
+legend("topleft", c("0.8","0.4", "0.1"),
+col=c("Red","Blue","Black"),
+lty=c(1),
+bty="n")
+
+
+@
+
+We can see that the shape how the shape of the black line differs from the shape of the other fitted lines in the same region. We can see visually how the effect loses robustness (significance) as the neighborhood get smaller, but is still significant at 1 percent level after all. The estimation effect in the black line is more reliable in this case where we haven't control the covariates.  
+
+\subsubsection*{h)}
+<<>>=
+output<-rdrobust(y=df$vote,
+                 x=df$margin,
+                 c=0,
+                 p=1,
+                 covs=NULL,
+                 fuzzy=NULL,
+                 kernel="uniform")
+
+summary(output)
+
+output2<-rdrobust(y=df$vote,
+                 x=df$margin,
+                 c=0,
+                 p=1,
+                 covs=NULL,
+                 fuzzy=NULL,
+                 kernel="triangular")
+
+summary(output2)
+
+output3<-rdrobust(y=df$vote,
+                 x=df$margin,
+                 c=0,
+                 p=1,
+                 covs=NULL,
+                 fuzzy=NULL,
+                 kernel="epanechnikov")
+
+summary(output3)
+
+
+
+
+@
+
+
+The bandwidth choices vary between 0.129 (uniform) 0.136 (triangular) 0.126 (epanechnikov).
+
+The standard error between the non-parametric models do not change and are all significant at 5 percent  level. The alpha estimate values is slightly higher in the uniform distribution, but overall the vote share in next election period increases 6.5-7 percent if the candidate is incumbent.
+
+\begin{table}[]
+\begin{tabular}{lllll}
+           & alpha & st error &  &  \\
+uniform    & 0.07  & 0.011    &  &  \\
+triangular & 0.064 & 0.011    &  &  \\
+epa        & 0.063 & 0.011    &  & 
+\end{tabular}
+\end{table}
+
+\subsubsection*{i)}
+
+Coefficients e), estimate d
+  Estimate Std. Error 
+  0.076590 0.013239 
+  
+There is no significant discrepancy between treatment effect estimates of parts e) and h) (0.076 against 0.07 to 0.063). If a possible discrepancy occur this means that the parametric OLS polynomial is not specifying well the true relationship between the dataset. In this case, a 4th polynomial degree is not a good model specification. 
+
+\subsubsection*{j)}
+
+<<>>=
+df5<-subset(df, margin>-0.129 & margin<0.129)
+res5<-lm(vote~d+margin+I(d*margin)+I(margin^2)+I(d*margin^2)+I(margin^3)+
+          I(d*margin^3)+I(margin^4)+I(d*margin^4),
+        data=df5)
+summary(res5)
+
+@
+
+Both treatment parameter value and standard errors of the current model is slightly higher compared with models from part (h) - due to smaller subset and number of observations.
+
+
+\subsubsection*{k)}
+<<>>=
+manip<-DCdensity(runvar=df$margin,
+                   cutpoint=0,
+                   plot=TRUE,
+                   ext.out=TRUE)
+abline(v=0,col=2,
+       lty=2,
+       lwd=1)
+print(c(manip$theta, manip$p, manip$bw))
+
+@
+
+p-value of 0.19 shows that we can't reject the non-manipulation hypothesis. This makes sense because an individual manipulates previous election voting result is barely impossible. 
+
+
+
+\subsection*{Problem 2)}
+
+\subsubsection*{a)}
+
+\subsubsection*{i)}
+
+1,500 g weight of a newborn is a conventional threshold limit in medicine. A weight below this limit is considered as "very low birth weight" (VLBW). If a newborn has a very low birth weight, then he/she is considering having more risk of adverse neonatal outcomes and is gonna have higher probability to receive extra medical care treatment (as ultrasounds). Alaso, some diagnostics and differential reimbursements are categorized by birth weight. The study also estimated a 4,000 dolars increase in hospital costs for infants just below the 1,500-g threshold, relative to mean hospital costs of 40,000 dolars just above 1,500 g, confirm the extra-care. 
+
+\subsubsection*{ii)}
+
+The position of a newborn just above 1,500 g relative to just below 1,500 g is "as good as random", i.e. the health of infants around the cutoff are randomly equal. The criteria of the cutoff is more conventional than biological, this means that biologicaly the observations does not differ around the cutoff, the only difference is in the probability of receveiving extra-care. 
+
+\subsubsection*{iii)}
+
+This assumption loses validity as one observation moves away from the cutoff. This happens because the higher the observation distance  from the cutoff, the more it will be affected differently from several variables, i.e. the health condition itself (biological) and overall characteristics will be significantly different from a VLBW. 
+
+\subsubsection*{iv)}
+
+Summary measures - such as charges and length of stay - was the best available two way measures of differences in health inputs.
+
+\subsubsection*{v)}
+
+Infant deaths.
+
+\subsubsection*{vi)}
+
+Is the The NCHS birth cohort, that linked birth/infant death files. This include data for a complete census of births occurring each year in the United States for the years 1983-1991 and 1995-2002 - approximately 66 million births. It's a data that combined information on birth linked to death certificates from infants who died within 1 year of birth. The data also contains a rich set of covariates and some treatment variables, as use of a ventilator after birth.
+
+\subsubsection*{vii)}
+
+First a local linear regression around the threshold was estimated, using a 85 grams bin. They used triangle kernel for that and reported asympotic standard errors. 
+
+Then a following parametric model:
+
+
+$Y_i=\alpha_0+\alpha_1VLBW_i+\alpha_2VLBW_i * (g_i-1500)+\alpha_3(1-VLBW_i) * (g_i - 1500) + \alpha_t+\alpha_s+\delta X_i+\epsilon$
+
+The variable description is: Y is an outcome or treatment measure such as one-year mortality or costs; VLBW is an indicator that the newbornwas classified as strictly less than 1,500 g; $\alpha2 = \alpha3$ if the trend is the same above and below the cutoff; t is indicator of each year of birth; s indicator for each state of birth; and newborn characteristics (covariates) is $X_i$ - includes an indicator that the mother was born outside the state where the infant was born, as well as indicators for mother's age, education, father's age, the newborn's sex, gestational age, race, and plurality.
+This model was estimated by OLS, heteroscedastic-robust standard errors and standard error correction by Card and Lee (2008 was reported.
+
+In the empirical strategy,  the instrument is the VLBW indicator. For that, 2 instrumental variables conditions must hold: 1) There must exist a 1st stage relationship between VLBW indicator and health inputs (condition on birth weight); 2) THe only way instrument VLBW affects mortality outcome conditioned on birth weitght is by its effect on health inputs measures. Hospital costs is used as the 1st stage variable. In the language of instrumental variables, the discontinuity in mortality is the reduced-form estimate and the discontinuity in health inputs is the first-stage estimate.
+
+\subsubsection*{viii)}
+
+
+
+The novelty about the study was the research design. Within a small bandwidth, they evaluated discontinuous probability of receiving extra-care and not in their underlying health. Then authors could estimate marginal returns to medical care conditional on that patients on one side of the threshold incurred additional medical costs. Asociated benefits can be estimated examining difference in health outcomes around the threshold. 
+In short, the novelty was to use a regression discontinuity analysis to estimate the returns to medical expenditures. 
+
+\subsubsection*{ix)}
+
+A potential limitation is that the returns were estimated in a particular point  in birth weight distribution and couldn't trace out marginal returns across the distribution and analyze other discontinuities. Other cutoffs could be relevant in the analysis.
+
+Also, the cost measures (hospital costs) may not fully capture the additional care provided to VLBW newborns.
+
+\subsubsection*{x)}
+How might this study inform policy?
+
+These results support the notion that differences in care received in the hospital are
+likely driving our mortality results. Which means that the benefits of additional care are significant to avoid infant deaths. This information is valuable to inform policy decisions to increase the level of care in newborn specific contexts. Aso it can be used to inform the population (mainly parents) to the effectiveness of extra-care in low weight infants. 
+
+\subsubsection*{b)}
+
+<<>>=
+
+nwb<- read.csv("C:/Users/mpign/OneDrive/Documentos/12-2020/Fall 2022 USU/Econometrics III/HW_3_metrics/adkw2010.csv")
+nwb2<-na.omit(nwb)
+stargazer(nwb, type = "text")
+
+
+
+
+@
+
+\subsubsection*{c)}
+<<>>=
+
+
+par(mfrow=c(3,1))
+
+hist(nwb2$gestat,freq=FALSE,
+main="Histogram gestat",
+xlab="gestate")
+lines(density(nwb2$gestat))
+
+
+
+hist(nwb2$birwt,freq=FALSE,
+main="Histogram birwt",
+xlab="birwt")
+lines(density(nwb2$birwt))
+
+
+hist(nwb2$death1year,freq=FALSE,
+main="Histogram death 1 year",
+xlab="death 1 year")
+lines(density(nwb2$death1year))
+
+@
+
+
+The distribution of gestational age (gestate) approximates a normal distribution with a very irregular curve. We have that data concentrates between 28/35 weeks and progressively shrinks on both extremes. Also, the right tail is slightly more dense than the left tail, which means that besides data lookslike a nornal shape, it isn't symmetric.
+
+The distribution of birth weights looks like a senoid (sen function), i.e. for every level of birth weight we have a normal distribution that is followed for another normal distribution successively (6 mini normal distributions). 
+
+The distribution of death 1 year shows us that infant deaths until 1 year is much smaller than no-deaths (survival).
+
+\subsubsection*{d)}
+
+<<>>=
+
+
+plot(nwb$birwt,nwb$death1year,
+     xlab="Birth weight",
+     ylab="Deaths 1 year",
+     main="Plot of Deaths 1 year on Birth Weight",
+     pch=20)
+abline(v=0,col=2,
+       lty=2,
+       lwd=1)
+
+@
+
+
+<<>>=
+
+
+h<-28.34
+birdt<-c()
+deatdt<-c()
+#create bins around 1500
+for (i in -3:2){
+  subset<-
+    nwb2[nwb2$birwt>=1500+i*h & nwb2$birwt<1500+(i+1)*h,]
+  birdt[i+4]<-median(subset$birwt)
+  deatdt[i+4]<-mean(subset$death1year)
+  }
+  
+plot(birdt,deatdt,
+xlab="Birth weight",
+ylab="death 1 year",)
+abline(v=1500,col=2,
+lty=2,
+lwd=1)
+
+
+@
+
+
+The increase in mortality observed just above 1,500 g appears to be a level shift, with the slope slightly less steep below the threshold. The mean mortality in the bin just above the threshold is around 6 percent and below the threshold less than 5.6 percent, showing evidence of a jump. Out of that, the mortality decreases until the threshold value from below, and starts decreasing again, but from a higher point just above the threshold. 
+
+\subsubsection*{e)}
+
+<<>>=
+
+plot(nwb$gestat,nwb$death1year,
+     xlab="Gestational age (weeks)",
+     ylab="Death 1 year",
+     main="Plot of Deaths 1 year on Birth Weight",
+     pch=20)
+abline(v=0,col=2,
+       lty=2,
+       lwd=1)
+
+
+@
+
+
+We can't see here a sharp partition in the graph. This indicates that only the probability of death until 1 year change across the gestational premature age of 37 weeks.
+
+\end{document}

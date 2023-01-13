@@ -1,0 +1,555 @@
+---
+title: "HW1_metrics"
+author: "Marcelo Pignatari"
+date: 09/18/22
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library("psych")
+library("dplyr")
+library("corrplot")
+library("stargazer")
+library("censReg")
+library("sampleSelection")
+library("AER")
+library("truncreg")
+library(dplyr)
+#install.packages("npsf")
+?sampleSelection
+```
+
+
+# Theory
+
+## 1. 
+
+$$E(Y|y*>c) = \int_{y*>c}^{\infty}y.f(y|y*>c)dy=\int_{y*>c}^{\infty}y\frac{f(y)}{Prob(y*>c)}.dy=\int_{y*>c}^{\infty}y\frac{f(y)}{1-Prob(y*<c)}.dy=\int_{y*>c}^{\infty}y.dy\frac{f(y)}{1-F(c)}dy$$
+
+Since $\frac{1}{1-F(c)}$ is constant in relation to y: $$E(Y|y*>c) = \frac{1}{1-F(c)}\int_{y*>c}^{\infty}yf(y)dy$$
+
+Since the derivative of a normal distribution $f'(y)=\frac{-(y-\mu)}{\sigma}.f(y)$, then:
+
+Standardizing the observations:
+$$E(Y|y*>c) =\frac{-\sigma}{1-\Phi(\frac{c-\mu}{\sigma})}\int_{y*>c}^{\infty}\frac{-(y-\mu)}{\sigma}f(y)
+dy+\frac{\mu}{1-\Phi(\frac{c-\mu}{\sigma})}\int_{y*>c}^{\infty}f(y)dy$$
+  
+Since $\int_{y*>c}^{\infty}f(y)=1-\Phi(\frac{c-\mu}{\sigma})$, and $f'(y)=\frac{-(y-\mu)}{\sigma}.f(y)$  then:
+
+$$E(Y|y*>c) =\frac{-\sigma}{1-\Phi(\frac{c-\mu}{\sigma})}\int_{y*>c}^{\infty}f'(y)
+dy+\mu=\mu+\sigma\lambda(\frac{c-\mu}{\sigma})$$
+
+with $$\lambda(\frac{c-\mu}{\sigma})= \frac{\phi(\frac{c-\mu}{\sigma})}{\Phi(\frac{c-\mu}{\sigma})}) $$
+
+## 2. 
+
+$$\frac{\partial E(y_i|x_i,y^*_i>c)}{\partial x_i}=\frac{\partial( x_i'\beta+\frac{\frac{1}{\sigma}\phi(\frac{c-x_i'\beta}{\sigma})}{1-\Phi(\frac{c-x_i'\beta}{\sigma})})}{\partial x_i}=\beta+\frac{1}{\sigma}(\frac{\phi'(.)(1-\Phi(.))-\phi(.)(-\Phi'(.))}{(1-\Phi(.))^2}=\beta+\frac{1}{\sigma}(\frac{\frac{1}{\sqrt{2\pi\sigma^2}}exp^\frac{(-(y_i-x_i'\beta)^2}{2\sigma^2}(\frac{-2(y_i-x_i'\beta)}{2\sigma^2})(-\beta)(1-\Phi(.))-\phi(.)(-\phi(.))}{(1-\Phi(.))^2}=\beta+\frac{1}{\sigma}(\frac{\phi(.)\beta(\frac{(y_i-x_i'\beta)}{\sigma^2})(1-\Phi(.))+\phi(.)^2}{(1-\Phi(.))^2}$$
+
+
+$$\beta+\frac{1}{\sigma}(\frac{\phi(.)\beta(\frac{(y_i-x_i'\beta)}{\sigma^2})(1-\Phi(.))}{(1-\Phi(.))^2}+\frac{1}{\sigma}\frac{\phi^2}{(1-\Phi(.))^2}$$
+As $$\lambda(.)=\frac{\phi(.)}{1-\Phi(.)}$$
+
+Then:
+
+$$\frac{\partial E(y_i|x_i,y^*_i>c)}{\partial x_i}=\beta+\frac{1}{\sigma}(\frac{\lambda(.)\beta(\frac{(y_i-x_i'\beta)}{\sigma^2})(1-\Phi(.))}{(1-\Phi(.)})+\frac{1}{\sigma}\lambda(.)^2=\beta+\frac{1}{\sigma}\lambda(.)\beta(\frac{(y_i-x_i'\beta)}{\sigma^2})+\frac{1}{\sigma}\lambda(.)^2$$
+# Application
+
+## Problem 3
+
+```{r}
+df<- read.csv("/Users/mpign/OneDrive/Documentos/12-2020/Fall 2022 USU/Econometrics III/HW_1_metrics/Mroz.csv")
+#head(df)
+
+```
+
+### a)
+#### i)
+
+```{r}
+summary(df)
+describe(df)
+#?describe
+
+```
+#### ii)
+```{r}
+describe.by(df,group=df$lfp)
+#second table
+
+```
+
+### b)
+
+```{r}
+
+par(mfrow=c(2,2))
+hist(df$hrsw,freq=FALSE)
+lines(density(df$hrsw))
+
+hist(df$hrsh,freq=FALSE)
+lines(density(df$hrsh))
+```
+
+The data histogram of hrsw (wife's annual hours worked) exhibit big bunch on the left indicating that data is censored at 0 - left-censoring. The histogram of hrsh contains a small bunch on the left, which can be censored daa as well. 
+
+### c)
+
+```{r}
+df$earnw<- df$wagew*df$hrsw
+df$earnh<- df$wageh*df$hrsh
+
+par(mfrow=c(2,2))
+hist(df$earnw,freq=FALSE)
+lines(density(df$earnw))
+
+hist(df$earnh,freq=FALSE)
+lines(density(df$earnh))
+
+
+
+```
+
+We see that the center of gravity of the  distribution of labour earnings moves to left in both cases. Wife's distribution seems like a Pareto, emphasizing the high inequality on this labour market. Husband's earning distributions is less unequal,seeming more as a bell-shaped right skewed.
+
+### d)
+
+```{r}
+m<-cor(df)
+corrplot(m,method="shade", diag=FALSE)
+
+?corrplot
+```
+
+The main variables which Wife's annual hours worked (hrsw) is fully positively correlated are labour force participation (lfp), which is obvious, and earn w. Somewhat positively correlated variables are wagew and expw, showing that when higher the wage, higher the annual hours worked. Also, higher wife's experience on a job is correlated with higher annual hours worked. 
+The main variable that hrsw is negatively correlated is child6, which makes much sense to afire that the higher the number of children under 6 years hold in the household, lower the annual number of hours worked of the wife. 
+
+### e)
+#### i)
+```{r}
+OLS<-lm(hrsw~wagew+wageh+agew+educw+child6+child618,data=df)
+
+```
+
+#### ii)
+
+```{r}
+df2<-filter(df, hrsw>0)
+#head(df2)
+#unique(df$hrsw)
+#unique(df2$hrsw)
+
+OLS2<-lm(hrsw~wagew+wageh+agew+educw+child6+child618,data=df2)
+
+
+```
+
+#### iii)
+
+```{r}
+Tobit<-censReg(hrsw~wagew+wageh+agew+educw+child6+child618,data=df,left=0,right=Inf)
+#summary(Tobit)
+mg<-margEff(Tobit)
+mgT<-summary(margEff(Tobit))
+#stargazer(OLS,OLS2,mgT,type="text")
+
+#Tobit2<-tobit(hrsw~wagew+wageh+agew+educw+child6+child618,data=df,left=0,right=Inf)
+#summary(Tobit2)
+
+
+```
+
+#### iv)
+```{r}
+
+wage<-df$wagew
+huswage<-df$wageh
+educ<-df$educw
+kidslt6<-df$child6
+kidsge6<-df$child618
+age<-df$agew
+inlf<-df$lfp
+hours<-df$hrsw
+
+# STEP 1
+probit<-glm(inlf~wage+huswage+educ+kidslt6+kidsge6+age, family=binomial(link="probit"),data = df)
+# STEP 2
+lambda<-dnorm(cbind(1,wage,huswage,educ,kidslt6,kidsge6,age)%*%(probit$coef))/pnorm(cbind(1,wage,huswage,educ,kidslt6,kidsge6,age)%*%(probit$coef))
+twostep<-lm(hours[hours>0]~wage[hours>0]+huswage[hours>0]+educ[hours>0]+kidslt6[hours>0]+kidsge6[hours>0]+age[hours>0]+lambda[hours>0])
+#stargazer(twostep, header=FALSE, type="latex",column.sep.width = "3pt")
+
+
+```
+
+#### v)
+
+```{r}
+
+x<-cbind(df$wagew,df$wageh,df$agew,df$educw,df$child6,df$child618)
+
+clad.fn<-function(param,y,x){
+b0<-param[1]
+b1<-param[2]
+b2<-param[3]
+b3<-param[4]
+b4<-param[5]
+b5<-param[6]
+b6<-param[7]
+n=length(df$hrsw)
+fn=0
+for(i in 1:n){
+dev=(df$hrsw[i]-max(b0+b1*x[i,1]+b2*x[i,2]+b3*x[i,3]+b4*x[i,4]+b5*x[i,5]+b6*x[i,6],0))
+fn=fn+abs(dev)
+}
+return((1/n)*fn)
+}
+
+# MINIMIZATION ROUTINE
+clad.es<-nlm(f=clad.fn,
+p=c(10,10,10,10,10,10,10),
+y=df$hrsw,
+x=x,
+hessian=TRUE)
+#print(clad.es)
+# RESULTS
+est<-clad.es$estimate
+cov<-solve(clad.es$hessian)
+se<-sqrt(diag(cov))
+zv<-est/se
+summ<-cbind(est, se, zv)
+colnames(summ)<-c('Estimate', 'Std Error', 'z value')
+print(summ)
+
+
+
+#no built-in for semi-parametric? Only Xs changes dont have PDfs CDFs assumption. quantile regression built in qr, set q=0.5.
+
+stargazer(OLS,OLS2,mgT,twostep,summ,type="text")
+
+```
+
+
+
+
+Comparing the OLS, dropping out all the censored observations changes the sign of wife's hourly wage coeffient on wife's annual hours worked, indicating that highest wages are related with less hours worked. Also, changes the signal of the effect of wife's education (in years) on wife's annual hours worked, showing that a higher level of education predicts - -on average and all else constant - a lower annual hour worked. 
+Running a censored regression we see that the effect of hourly wage becomes positive again in a higher significance level. Husband's hourly wage and wife's age remains with a negative effect, the first with higher levels of significance and the second one became significant. Education level remain not significant and child 6 and child 618 remains negative and significant. 
+The Heckman 2-stage model give us coefficients similar to the naive OLS model with uncensored data in terms of sign and significance level.
+The semi-parametric estimation shows a positive relationship on wage on wife's and hunsbands hourly wages only. All the other coefficients are negative. 
+
+
+
+## f)
+```{r}
+
+df3<-mutate(df,logwagew=log(wagew),logwageh=log(wageh))
+#head(df3)
+
+#range(df3$logwagew)
+#df3$wagew
+
+#range(df3$logwageh)
+#df3$wageh
+
+Tobit<-censReg(hrsw~wagew+wageh+agew+educw+child6+child618,data=df,left=0,right=Inf)
+summary(Tobit)
+mgT<-summary(margEff(Tobit))
+mgT
+
+
+
+```
+
+In wagew, coefficients means that a 1 unit increase in wife's hourly wage predicts, on average and everything else constant, increase in 118 annual hours worked. This interpretation makes intuitive sense, because a higher salary can lead to a higher degree of responsibility and more hours worked.  
+In wageh, a one unit increase husband's hourly wage leads to a decrase of 31 wife's annual hours worked - on average keeping all else constant.. This make sense, since husbands with higher salary contributing to household expenses can cause a disincentive for his wife's to work more.  
+
+# Problem 4
+
+```{r}
+set.seed(20102)
+e<-rnorm(n=200,mean=0,sd=sqrt(3))
+x<-runif(n=200,min=0,max=1)
+
+```
+
+## a)
+
+```{r}
+a<-0.2
+ystar=a+3*x+e
+length(ystar[ystar<0])/length(ystar)
+
+```
+
+## b)
+
+```{r}
+truncating.fn<-function(data,t,type){
+n<-length(data)
+tdata<-vector(length=n)
+if(type==0){
+tdata<-data[data>t]
+}
+else if(type==1){
+tdata<-data[data<t]
+}
+na.omit(tdata)
+}
+
+ltdata<-truncating.fn(ystar,0,0)
+#ltdata
+
+```
+
+## c)
+
+```{r}
+lm(ystar~x)
+```
+
+## d)
+
+```{r}
+data1<-data.frame( ystar=ystar,x= x)
+data2<-filter(data1,ystar>0)
+lm(ystar~x,data2)
+data2[,2]
+
+```
+## e)
+
+```{r}
+output<-truncreg(ystar~x,data=data2,
+point=0,
+direction="left")
+summary(output)
+
+output$coefficients[1]
+
+t<-0
+
+# LOG-LIKELIHOOD FUNCTION
+#logl<-function(param,data){
+#b0<-param[1]
+#b1<-param[2]
+#sigma<-param[5]
+#ll<-sum(log(dnorm(data2[,1], b0+b1*data2[,2], sigma)))-
+#sum(log(1-pnorm((t-b0-b1*data[,2])/sigma)))
+#return(-ll) #for nlm
+#}
+# MLE
+#results<-nlm(f=logl,
+#p=c(1,1,1,1,1),
+#data=data2,
+#hessian=TRUE)
+
+# RESULTS
+#print(results)
+#estimate<-results$estimate
+#covmat<-solve(results$hessian)
+#stderror<-sqrt(diag(covmat))
+#zvalue<-estimate/stderror
+#pvalue<-2*(1-pnorm(abs(zvalue)))
+#sum<-cbind(estimate, stderror, zvalue, pvalue)
+#colnames(sum)<-c('Estimate', 'Std Error', 'z value', 'p value')
+#print(sum)
+
+# 2. MARGINAL EFFECT - EVALUATED AT THE MEANS OF x_i
+# Create lambda
+t<-0
+phi2<-dnorm((t-output$coefficients[1]-output$coefficients[2]*mean(data2[,2]))/output$coefficients[3])
+Phi2<-pnorm((t-output$coefficients[1]-output$coefficients[2]*mean(data2[,2]))/output$coefficients[3])
+lambda2<-phi2/(1-Phi2)
+
+# Marginal effect of beta0
+margeff.beta0<-output$coefficients[1]*(1+((t-output$coefficients[1]-output$coefficients[2]*mean(data2[,2]))/output$coefficients[3])*lambda2
+-(lambda2)^2)
+print(margeff.beta0)
+
+# Marginal effect of beta1
+margeff.beta1<-output$coefficients[2]*(1+((t-output$coefficients[1]-output$coefficients[2]*mean(data2[,2]))/output$coefficients[3])*lambda2
+-(lambda2)^2)
+print(margeff.beta1)
+
+
+
+
+
+
+```
+
+
+## f)
+
+```{r}
+
+a<--0.5
+ystar=a+3*x+e
+length(ystar[ystar<0])/length(ystar)
+
+truncating.fn<-function(data,t,type){
+n<-length(data)
+tdata<-vector(length=n)
+if(type==0){
+tdata<-data[data>t]
+}
+else if(type==1){
+tdata<-data[data<t]
+}
+na.omit(tdata)
+}
+
+ltdata<-truncating.fn(ystar,0,0)
+#ltdata
+
+lm(ystar~x)
+
+data1<-data.frame( ystar=ystar,x= x)
+data2<-filter(data1,ystar>0)
+lm(ystar~x,data2)
+
+output<-truncreg(ystar~x,data=data2,
+point=0,
+direction="left")
+summary(output)
+
+# 2. MARGINAL EFFECT - EVALUATED AT THE MEANS OF x_i
+# Create lambda
+t<-0
+phi2<-dnorm((t-output$coefficients[1]-output$coefficients[2]*mean(data2[,2]))/output$coefficients[3])
+Phi2<-pnorm((t-output$coefficients[1]-output$coefficients[2]*mean(data2[,2]))/output$coefficients[3])
+lambda2<-phi2/(1-Phi2)
+
+# Marginal effect of beta0
+margeff.beta0<-output$coefficients[1]*(1+((t-output$coefficients[1]-output$coefficients[2]*mean(data2[,2]))/output$coefficients[3])*lambda2
+-(lambda2)^2)
+print(margeff.beta0)
+
+# Marginal effect of beta1
+margeff.beta1<-output$coefficients[2]*(1+((t-output$coefficients[1]-output$coefficients[2]*mean(data2[,2]))/output$coefficients[3])*lambda2
+-(lambda2)^2)
+print(margeff.beta1)
+
+```
+
+```{r}
+a<--1
+ystar=a+3*x+e
+length(ystar[ystar<0])/length(ystar)
+
+truncating.fn<-function(data,t,type){
+n<-length(data)
+tdata<-vector(length=n)
+if(type==0){
+tdata<-data[data>t]
+}
+else if(type==1){
+tdata<-data[data<t]
+}
+na.omit(tdata)
+}
+
+ltdata<-truncating.fn(ystar,0,0)
+#ltdata
+
+lm(ystar~x)
+
+data1<-data.frame( ystar=ystar,x= x)
+data2<-filter(data1,ystar>0)
+lm(ystar~x,data2)
+
+output<-truncreg(ystar~x,data=data2,
+point=0,
+direction="left")
+summary(output)
+
+# 2. MARGINAL EFFECT - EVALUATED AT THE MEANS OF x_i
+# Create lambda
+t<-0
+phi2<-dnorm((t-output$coefficients[1]-output$coefficients[2]*mean(data2[,2]))/output$coefficients[3])
+Phi2<-pnorm((t-output$coefficients[1]-output$coefficients[2]*mean(data2[,2]))/output$coefficients[3])
+lambda2<-phi2/(1-Phi2)
+
+# Marginal effect of beta0
+margeff.beta0<-output$coefficients[1]*(1+((t-output$coefficients[1]-output$coefficients[2]*mean(data2[,2]))/output$coefficients[3])*lambda2
+-(lambda2)^2)
+print(margeff.beta0)
+
+# Marginal effect of beta1
+margeff.beta1<-output$coefficients[2]*(1+((t-output$coefficients[1]-output$coefficients[2]*mean(data2[,2]))/output$coefficients[3])*lambda2
+-(lambda2)^2)
+print(margeff.beta1)
+
+
+```
+
+```{r}
+a<--1.5
+ystar=a+3*x+e
+length(ystar[ystar<0])/length(ystar)
+
+truncating.fn<-function(data,t,type){
+n<-length(data)
+tdata<-vector(length=n)
+if(type==0){
+tdata<-data[data>t]
+}
+else if(type==1){
+tdata<-data[data<t]
+}
+na.omit(tdata)
+}
+
+ltdata<-truncating.fn(ystar,0,0)
+#ltdata
+
+lm(ystar~x)
+
+data1<-data.frame( ystar=ystar,x= x)
+data2<-filter(data1,ystar>0)
+lm(ystar~x,data2)
+
+output<-truncreg(ystar~x,data=data2,
+point=0,
+direction="left")
+summary(output)
+
+
+# 2. MARGINAL EFFECT - EVALUATED AT THE MEANS OF x_i
+# Create lambda
+t<-0
+phi2<-dnorm((t-output$coefficients[1]-output$coefficients[2]*mean(data2[,2]))/output$coefficients[3])
+Phi2<-pnorm((t-output$coefficients[1]-output$coefficients[2]*mean(data2[,2]))/output$coefficients[3])
+lambda2<-phi2/(1-Phi2)
+
+# Marginal effect of beta0
+margeff.beta0<-output$coefficients[1]*(1+((t-output$coefficients[1]-output$coefficients[2]*mean(data2[,2]))/output$coefficients[3])*lambda2
+-(lambda2)^2)
+print(margeff.beta0)
+
+# Marginal effect of beta1
+margeff.beta1<-output$coefficients[2]*(1+((t-output$coefficients[1]-output$coefficients[2]*mean(data2[,2]))/output$coefficients[3])*lambda2
+-(lambda2)^2)
+print(margeff.beta1)
+```
+
+
+
+| % of y*'s<0 | Parameters | True values | OLS ($y_i*$) | OLS($y_i$) | Truncated Regression | Mg.effect Truncated (mean)
+|-------------|------------|-------------|--------------|------------|----------------------|-------------------------
+|     20%     | $\beta_0$  | 0.2         | 0.11         | 1.32       | 0.49                 | -0.258
+|             | $\beta_1$  | 3           | 3.14         | 1.814      | 2.63                 | 1.656
+|     30%     | $\beta_0$  | -0.5        | -0.582       | 0.9732     | -0.46                | -0.258
+|             | $\beta_1$  | 3           | 3.1417       | 1.6259     | 2.94                 | 1.656
+|     40%     | $\beta_0$  | -1          | -1.082       | 0.8808     | -0.85                | -0.422
+|             | $\beta_1$  | 3           | 3.142        | 1.353      | 2.83                 | 1.394
+|     50%     | $\beta_0$  | -1.5        | -1.582       | 0.8831     | -0.975               | -0,425
+|             | $\beta_1$  | 3           | 3.142        | 0.9989     | 2.34                 | 1.024
+
+
+As higher the level of truncation, more OLS($y_i$) distances itself form the true parameters values. 
+Looking to the truncated regression coefficients, the best model is the one that estimates 30% of y*s being negative, but the trend is that from that point, the higher the number of negative observations excluded, greater the difference between the coefficients estimated and the true coefficients. 

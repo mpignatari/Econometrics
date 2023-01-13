@@ -1,0 +1,347 @@
+---
+title: "Problem Set 2"
+author: "Marcelo Pignatari"
+date: "02/10/2022"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+\tableofcontents
+
+
+\newpage
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+```
+
+
+```{r include=FALSE}
+library(astsa)
+library(tibble)
+library(knitr)
+library(xts)
+library(xtable)
+library(ggplot2)
+library(dplyr)
+library(stargazer)
+library(tseries)
+```
+
+# Theory
+
+## 1.
+
+### a)
+
+This is a quadratic time trend (deterministic) process. The model will be stationary after a second order differentiation, so it is an ARIMA (0,2,0) or I(2).
+
+### b)
+
+$$E(x_t)=E(\beta_1)+E(\beta_2t^2)+E(w_t)=\beta_1+\beta_2E(t^2)=\beta_1+\beta_2t^2$$
+As the first moment depends on t, the seris don't have constant mean. Therefore is non-stationary.
+
+### c)
+
+$$x_t=\beta_1+\beta_2t^2+w_t$$
+
+$$x_{t-1}=\beta_1+\beta_2(t-1)^2+w_t=\beta_1+\beta_2(t^2-2t-1)+w_t=\beta_1+\beta_2t^2-2\beta_2t+\beta_2+w_{t-1}$$
+
+$$y_t=x_t-x_{t-1}=\beta_1+\beta_2t^2+w_t-(\beta_1+\beta_2t^2-2\beta_2t+\beta_2+w_{t-1})=\beta_1+\beta_2t^2+w_t-\beta_1-\beta_2t^2+2\beta_2t-\beta_2-w_{t-1}=2\beta_2t-\beta_2+w_t-w_{t-1}$$
+
+1st moment: $$E[y_t]=E[2\beta_2t-\beta_2+w_t-w_{t-1}]=E[2\beta_2t]-E[\beta_2]+E[w_t]-E[w_{t-1}]=2\beta_2t-\beta_2$$
+Because it still depending on t (not-constant), this series is also non-stationary.
+
+### d)
+
+$$y_t=x_t-x_{t-1}=2\beta_2t-\beta_2+w_t-w_{t-1}$$
+$$y_{t-1}=2\beta_2(t-1)-\beta_2+w_{t-1}-w_{t-2}=2\beta_2t-2\beta_2-\beta_2+w_{t-1}-w_{t-2}=2\beta_2t-3\beta_2+w_{t-1}-w_{t-2}$$
+$$z_t=2\beta_2t-\beta_2+w_t-w_{t-1}-(2\beta_2t-3\beta_2+w_{t-1}-w_{t-2})=2\beta_2+w_t-2w_{t-1}+w_{t-2}$$
+
+1st moment: $$E[z_t]=E[2\beta_2+w_t-2w_{t-1}+w_{t-2}]=E[2\beta_2]+E[w_t]-2E[w_{t-1}]+E[w_{t-2}]=2\beta_2$$
+
+2nd moment:$$Var[z_t]=Var[2\beta_2+w_t-2w_{t-1}+w_{t-2}]=Var[2\beta_2]+Var[w_t]+Var[-2w_{t-1}]+Var[w_{t-2}]=4Var[\beta_2]+Var[w_t]+4Var[w_{t-1}]+Var[w_{t-2}]=0+\sigma^2+4\sigma^2+\sigma^2=6\sigma^2$$
+
+Autocovariance function:
+
+$$z_{t-1}=2\beta_2+w_{t-1}-2w_{t-2}+w_{t-3}$$
+
+$$Cov(z_t,z_{t-1})=E(z_t-E[z_t])(z_{t-1}-E[z_{t-1}])=E[(2\beta_2+w_t-2w_{t-1}+w_{t-2}-2\beta_2)(2\beta_2+w_{t-1}-2w_{t-2}+w_{t-3}-2\beta_2)]$$
+$$=E[(w_t-2w_{t-1}+w_{t-2})(w_{t-1}-2w_{t-2}+w_{t-3})]$$
+
+$$=E[w_tw_{t-1}-2w_tw_{t-2}+w_tw_{t-3}-2(w_{t-1})^2+4w_{t-1}w_{t-2}-2w_{t-1}w_{t-3}+w_{t-2}w_{t-1}-2(w_{t-2})^2+w_{t-2}+w_{t-3}]=E[-2(w_{t-1})^2]+E[-2(w_{t-2})^2]=-2E[(w_{t-1})^2]-2E[(w_{t-2})^2]=-2\sigma^2-2\sigma^2=-4\sigma^2$$
+
+general way:
+$$z_{t-h}=2\beta_2+w_{t-h}-2w_{t-h-1}+w_{t-h-2}$$
+$$Cov(z_t,z_{t-h})=E(z_t-E[z_t])(z_{t-h}-E[z_{t-h}])=E[(2\beta_2+w_t-2w_{t-1}+w_{t-2}-2\beta_2)(2\beta_2+w_{t-h}-2w_{t-h-1}+w_{t-h-2})]$$
+$$=E[(w_t-2w_{t-1}+w_{t-2})(w_{t-h}-2w_{t-h-1}+w_{t-h-2})]$$
+
+$$=E[w_tw_{t-h}-2w_tw_{t-h-1}+w_tw_{t-h-2}-2w_{t-1}w_{t-h}+4w_{t-1}w_{t-h-1}-2w_{t-1}w_{t-h-2}+w_{t-2}w_{t-h}-2w_{t-2}w_{t-h}+w_{t-2}+w_{t-h-2}]=E[-2(w_{t-1})^2]+E[-2(w_{t-2})^2]=-2E[(w_{t-1})^2]-2E[(w_{t-2})^2]=-2\sigma^2-2\sigma^2=-4\sigma^2$$
+
+if h=1, then $Cov(z_t,z_{t-h})=-4\sigma^2$
+if $h\ge2$, then $Cov(z_t,z_{t-h})=0$ 
+
+The process seems to be stationary because the first 2 moments and covariance do not depend on t (are constants). Covariance only depend on lags.
+
+## 2.
+
+$$x_t = 2w_{t_-1} + w_t + 2w_{t+1}$$
+
+Mean function: $$E[x_t] = E[2w_{t_-1} + w_t + 2w_{t+1}]=E[2w_{t_-1}] + E[wt] + E[2w_{t+1}]=2E[w_{t_-1}] + 0 + 2E[w_{t+1}]=0$$
+
+Variance Function: $$Var[x_t] = Var[2w_{t_-1}] + Var[wt] + Var[2w_{t+1}]=4Var(w_{t_-1}] + \sigma^2 + 4Var[w_{t+1}]=4\sigma^2 + \sigma^2 + 4\sigma^2=9\sigma^2$$
+
+Autocovariance:
+$$\gamma_x(t,t)=E[(x_t-E[x_t])(x_t-E[x_t])]=E[(x_t)^2]=Var(x_t)=9\sigma^2$$
+
+$$\gamma_x(t,t+1)=E[(x_t-E[x_t])(x_{t+1}-E[x_{t+1}])]=E[x_tx_{t+1}]=E[(2w_{t_-1} + w_t + 2w_{t+1})(2w_{t} + w_{t+1} + 2w_{t+2})]=2E[w_tw_t]+2E[w_{t+1}w_{t+1}]=\sigma^2(2+2)=4\sigma^2$$
+
+$$\gamma_x(t,t+2)=E[(x_t-E[x_t])(x_{t+2}-E[x_{t+2}])]=E[x_tx_{t+2}]=E[(2w_{t_-1} + w_t + 2w_{t+1})(2w_{t+1} + w_{t+2} + 2w_{t+3})]=4E[w_{t+1}w_{t+1}]=4\sigma^2$$
+
+$$\gamma_x(t,t+3)=E[(x_t-E[x_t])(x_{t+3}-E[x_{t+3}])]=E[x_tx_{t+3}]=E[(2w_{t_-1} + w_t + 2w_{t+1})(2w_{t+2} + w_{t+3} + 2w_{t+4})]=0$$
+
+Autocorrelation:
+
+$$\rho_x(t,t+1)=\frac{\gamma_x(t,t+1)}{\gamma_x(t,t)}=\frac{4\sigma^2}{9\sigma^2}=4/9$$
+
+## 3.
+
+### a) The process is an ARMA(1,1)
+
+### b) 
+
+$$y_t = \phi y_{t-1}+\epsilon_t+\theta\epsilon_{t-1}$$ (1)
+
+By iterative substitution:
+
+$$y_{t-1} = \phi y_{t-2}+\epsilon_{t-1}+\theta\epsilon_{t-2}$$  (2)
+
+(2) in (1):
+
+
+$$y_t = \phi(\phi y_{t-2}+\epsilon_{t-1}+\theta\epsilon_{t-2}) +\epsilon_t+\theta\epsilon_{t-1}$$ (3)
+
+$$=\phi^2 y_{t-2}+\phi\epsilon_{t-1}+\phi\theta\epsilon_{t-2} +\epsilon_t+\theta\epsilon_{t-1}$$
+
+Now,
+
+$$y_{t-2} = \phi y_{t-3}+\epsilon_{t-2}+\theta\epsilon_{t-3}$$  (4)
+
+
+(4) in (3:)
+
+$$y_t=\phi^2 (\phi y_{t-3}+\epsilon_{t-2}+\theta\epsilon_{t-3})+\phi\epsilon_{t-1}+\phi\theta\epsilon_{t-2} +\epsilon_t+\theta\epsilon_{t-1}$$
+$$=\phi^3 y_{t-3}+\phi^2\epsilon_{t-2}+\phi^2\theta\epsilon_{t-3}+\phi e_{t-1}+\phi\theta e_{t-2} +\epsilon_t+\theta\epsilon_{t-1}$$
+
+Iterating k steps we have:
+
+$$y_t = \phi^k y_{t-k}+\sum_{j=0}^k\phi^je_{t-j}+\sum_{j=0}^k\phi^j\theta e_{t-j-1}$$ $k=t-1$
+
+Given that $|\phi|<1$, $\phi^k y_{t-k}→0$ in large series. Then we are left with a infinite order MA process, that depends only on errors (white noises) and coefficients. $y_t=\sum_{j=0}^k\phi^je_{t-j}+\sum_{j=0}^k\phi^j\theta e_{t-j-1}$ $k=t-1$
+
+So, the mean of the process is:  
+$E[y_t]=E[\sum_{j=0}^k\phi^je_{t-j}+\sum_{j=0}^k\phi^j\theta e_{t-j-1}]=E[\sum_{j=0}^k\phi^je_{t-j}]+E[\sum_{j=0}^k\phi^j\theta e_{t-j-1}]=\sum_{j=0}^k\phi^jE[e_{t-j}]+\sum_{j=0}^k\phi^j\theta E[ e_{t-j-1}]$ $k=t-1$. Because $E[e_t]=0$, then $E[y_t]=0]$
+
+And the variance of the process is:
+$\gamma(0)=Var(y_t)=Var(\sum_{j=0}^k\phi^je_{t-j}+\sum_{j=0}^k\phi^j\theta e_{t-j-1})=\sum_{j=0}^k\phi^{2j}Var(e_{t-j})+\sum_{j=0}^k\phi^{2j}\theta^2 Var(e_{t-j-1})=\sum_{j=0}^k\phi^{2j}\sigma^2+\sum_{j=0}^k\phi^{2j}\theta^2 \sigma^2$ for $k=t-1$
+
+$$Var(y_t)=\sigma^2(1+\phi^2+\phi^4+...+\phi^{2(t-1)})+\sigma^2(\theta^2+\phi^2\theta^2+\phi^4\theta^2+...+\phi^{2(t-1)}\theta^2)$$
+
+For the 2 summation terms of the equation we have a geometric sequence with common factor $\phi^{2}$. Because $|\phi|<1$, then we have:
+$Var(y_t)=\frac{\sigma^2}{1-\phi^2}+\frac{\theta^2\sigma^2}{1-\phi^2}=\frac{\sigma^2(1+\theta^2)}{1-\phi^2}$
+
+# Application
+
+## 1.
+
+### a)
+```{r}
+
+data(jj)
+data1<-log(jj)
+trend<-time(jj)
+output<-ts(jj, start=c(1960,1), frequency=4)
+plot(jj)
+q <- factor(rep(1:4, 21))
+
+t<-time(jj)
+q<-factor(rep(1:4,21))
+
+jmodel<-lm(data1~0+t+q)
+stargazer(jmodel,type="text")
+
+```
+
+$\beta$: every unit increase in time predicts an additional 16.7% increase in jj quarterly earnings.
+$\alpha's$ are the intercepts points. The points where quarterly time series would begin at year 0.
+
+### b) 
+beta0+beta1t …
+```{r}
+jmodel2<-lm(log(jj)~t+q,na.action = NULL)
+jbetas2<-coefficients(jmodel2)
+stargazer(jmodel,jmodel2,type="text")
+
+```
+
+In the regression in part(b), the $α_s$ are increments on the intercept, rather than the intercepts themselves. $α_2$, $α_3$ $α_4$ indicate that the Johnson and Johnson quaterly earnings for
+the 2nd and 3rd quarter are on average greater that those of the 1st quarter. Earnings of the 4th quarter are on average smaller than  those of the 1st quarter.
+
+### c)
+```{r fig.height=15, fig.width=15}
+
+pcol<-"black"
+m1col<-"darkblue"
+m2col<-"lightgray"
+
+lmat<-matrix(c(1,2,1,3),nrow=2)
+pglayout<-layout(lmat)
+
+
+
+plot(log(jj),type="l",col=pcol,main="J&J stock price",lwd=3,cex.main=2.5,xaxt="none",yaxt="none",xlab="",ylab="")
+lines(fitted(jmodel),col=m1col,lwd=3.0)
+lines(fitted(jmodel2),col=m2col,lty="dashed",lwd=1.0)
+axis(1,cex.axis=1)
+axis(2,cex.axis=1,las=2)
+mtext(side=1,"")
+mtext(side=2, line=2,"Log(Price) $", cex=1.5)
+
+legend(1960,15,legend=c("Stock price", "No-intercept model","Intercept model"),col=c(pcol,m1col,m2col), lty = c(1,1,2) ,cex=0.6)
+
+plot(resid(jmodel2),main="Residuals of intercept model",type="l",cex.main=2.5,xaxt="none",yaxt="none",xlab="",ylab="")
+axis(1,cex.axis=.7)
+axis(2,cex.axis=.7,las=2)
+mtext(side=1,"")
+mtext(side=2,line=2,"Price - predicted price", cex=1)
+
+qqnorm(resid(jmodel2),cex.main=2.5,cex.lab=1.2,cex.axis=1)
+qqline(resid(jmodel2))
+
+
+
+
+```
+
+
+Looking to the qq-plot, the error distribution is very similar to a normal distribution. Therefore, it seems to be random and white noise. Nevertheless there is still some curvature and variations missing. 
+The model seems to fit very well the data, keeping track very well of the data behavior through time. The model also has a high R2 and coefficients are significants.
+
+## 2.
+
+### a)
+
+```{r}
+data(varve)
+xt<-varve
+plot(varve)
+
+```
+
+
+The series doesn't seem to be stationary. We clearly see a lower volatility of data in the beginning of the series that increases abruptly during some interval. 
+
+### b)
+```{r}
+
+var(varve)
+#varve
+634/2
+
+var(varve[1:(length(varve)/2)])
+var(varve[((length(varve)/2)+1):length(varve)])
+
+#time(varve)
+
+v1<-window(varve,1,(length(varve)/2))
+v2<-window(varve,(length(varve)/2)+1,length(varve))
+var(v1)
+var(v2)
+
+
+```
+
+First half of the data presents  variance of 133.45, the second half of the series has a variance of 592.96.
+
+### c)
+
+```{r fig.height=10, fig.width=10}
+
+
+par(mfrow=c(2,1))
+plot(varve)
+plot(log(varve))
+
+var(varve)
+var(log(varve))
+
+y<-log(varve)
+var(y[1:length(y)/2])
+var(y[(length(y)/2+1):length(y)])
+
+```
+
+We clearly see in the plots that the log transformation reduces abruptly the range of the dependent variable, and therefore its variance. The calculations shows that variance reduces from 412.64 to 0.4 in the whole. Comparing the 2 half portions of the series we also see that variances became very similar to each one. 
+
+### d)
+
+```{r fig.height=10, fig.width=10}
+par(mfrow=c(2,1))
+hist(varve,prob = TRUE)
+lines(density(varve))
+
+hist(log(varve),prob=TRUE)
+lines(density(log(varve)),lty="dashed")
+
+```
+
+The transformation improved the series distribution towards normality. 
+
+## e)
+
+```{r fig.height=10, fig.width=10}
+
+yt<-log(varve)
+
+plot(log(varve))
+
+par(mfrow=c(2,1))
+acf(yt, ylab="Sample ACF",
+    main=expression(paste("log(varve)")))
+pacf(yt, ylab="Sample PACF",
+     main=expression(paste("log(varve)")))
+
+adf.test(yt, alternative="stationary", k=0) #k=0: Dickey-Fuller test
+adf.test(yt, alternative="stationary")
+
+```
+
+Sample PACF and PACF show that the process is not white noise (both has significant spikes). ACF doesn't present an exponential decay, varying cyclically, and PACF shows significant subsequent spikes until lag six and cyclical positive spikes after that. This indicates that besides log transformation, this series needs to be modeled with more systematic components, probably lag components and seasonal components.
+
+### f)
+
+```{r fig.height=10, fig.width=10}
+
+ut<-diff(yt,differences=1,lag=1)
+
+par(mfrow=c(2,1))
+acf(ut, ylab="Sample ACF",
+    main=expression(paste("ut")))
+pacf(ut, ylab="Sample PACF",
+     main=expression(paste("ut")))
+
+adf.test(ut, alternative="stationary", k=0) #k=0: Dickey-Fuller test
+adf.test(ut, alternative="stationary")
+
+
+ARMAacf(ma=c(-0.7), lag.max=20, pacf=TRUE)
+
+```
+
+Differencing log(varve) and running the Dick-Fuller test we reject non-stationarity for ACF and PACF, this is a good evidence that we have a reasonably stationarity series.  Looking for both graphs, we see that  it produces  an ACF with only one significant spike and a sample PACF with exponential decay and seasonal spikes. Indeed, differencing the series clearly ameliorates the autocorrelation comparing with the previous analysis. However there is still some non-stationarity that could be addressed inserting a moving average component to the data. 
+
+### g)
+
+As saying before, the model that seems to aproximate the data the best is an ARIMA(0,1,1) - with some seasonal component hard to identify.

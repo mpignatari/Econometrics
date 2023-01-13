@@ -1,0 +1,234 @@
+---
+title: "HW 5 - Multiple Regression Model Estimation - part 1"
+author: "Marcelo Pignatari"
+date: "10/10/2021"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+\tableofcontents
+
+
+\newpage
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen=999)
+```
+
+
+```{r include=FALSE}
+library(wooldridge)
+library(stargazer)
+library(dplyr)
+```
+
+# Problems
+
+## Question 1
+
+```{r}
+data("sleep75")
+#head(sleep75)
+
+```
+
+
+### (i) 
+
+I think $\beta_1<0$ when we trade sleep for work.
+
+### (ii)
+
+I would expect $\beta_2,\beta_3>0$.
+
+### (iii)
+```{r}
+lmsleep<-lm(sleep~totwrk+educ+age,sleep75)
+#stargazer(lmsleep,type = "text")
+lmsleep$coefficients[2]*5*60
+
+```
+Sleep is predicted to fall 44.51 minutes at night per week. It seems that is a small trade-off. But after all, it depends on how long the person usually sleeps. If she usually sleeps a lot, the benefit that the person will gain in additional salary outweighs the health damage of sleeping 45 minutes less per week. If she already sleeps very little, maybe this less time of rest can be very valuable for her health, so maybe it might not be worth it.
+
+## (iv)
+
+The negative sign means that the more years of schooling a person have - on avarege and holding everything else constant - she will sleep less. The magnitude means that every additional year of schooling predicts - on average and holding everything else constant - 11.13 less minutes of sleep at night per week. This is actually very curious, First, I would say that with more education, people get more money per working time, have more time to rest and tends to sleep less, this because salary is not a independent variable and its effect was not isolated. But more important, talking about the isolated effect of education, I thought that more education leads to more understanding of the benefits of sleep on health and therefore more hours of sleep. However, the data suggests a contrary effect on it. The magnitude is not very large, but suggests that more education leads to an knowledge (on average) that sleep less is better.
+
+### (v)
+
+Not much, the $R^2$ value implies that only 11.3% of the variation in sleep is explained by the these factors. The other factors that might affect sleep are: salary, health quality, car ownership, number of children, etc. Salary and health quality are likely to be correlated with totwork.
+
+## Question 2
+
+### (i)
+
+Because the higher the number of rank, worst ranked the law school is. Also, an increase in rank means that the law school is of lower quality and employers are likely to pay a lower salary to a lower quality law school student. Thus it makes sense an increase in rank be associated with a decrease on salary.  
+
+### (ii)
+
+$\beta_1>0,\beta_2>0$
+Both of these factors relates to measurement of intellectual performance on law school. It is very likely that the employers wich offers the highest paid salaries tends to hire people that shows better intellectual performance. 
+
+$\beta_3>0$
+More volumes in the library tends to suggest that the employee had access to more information and impact positively on salary. 
+
+$\beta_4>0$
+I can`t see a pure effect of annual cost and higher salaries, but I suggest a positively slope because of the correlating effects of work connections on high cost universities. Then this would affect higher salaries. 
+
+### (iii)
+
+```{r}
+#data("lawsch85")
+lmlaw<-lm(log(salary)~LSAT+GPA+log(libvol)+log(cost)+rank,lawsch85)
+#stargazer(lmlaw,type = "text")
+```
+
+The predicted ceteris paribus difference in salary for school with a median GPA different by one point is 24.8%. 
+
+### (iv)
+
+The coefficient of log(libvol) means that a 1% increase in the number of volumes in the library corresponds - on average and ceteris paribus - to  an increment of 0.95% on salary. 
+ 
+*libvol is the number of volumes in the library in thousand units.
+ 
+### (v) 
+
+Yes. 
+
+```{r}
+lmlaw$coefficients[6]*20*100
+```
+
+The difference in predicted starting salary - on average and holding everything else constant - is 6.65%.
+
+## Question 3
+
+### (i)
+
+This is explained because into the data - considering all of observations - the variable age has more missing data than rank and GPA. Specifically 43 more missing data than rank and GPA. Therefore, the model was regressed with fewer number of observations. Due to the fact that a fewer number of observations might impact R2 via the increasing of the standard deviation between y and $\hat{y}$, hence the R2 could decrease. 
+
+# Computer Exercises
+
+# Question 4 
+
+```{r}
+data(hprice1)
+#head(hprice1)
+lmhp<-lm(price~sqrft+bdrms,hprice1)
+stargazer(lmhp,type = "text")
+
+```
+## (i) 
+$$\widehat{price}=-19.315+0.128\,sqrft+15.198\,bdrms$$
+
+## (ii) 
+
+15.198 thousands dollars, which means 15,198 dollars.
+
+## (iii)
+
+*This question is a bit confusing (ambiguous), you can interpret the question in two ways in my opinion:
+1) How much is the price increase for a 140-square-foot house with an additional bedroom
+2) How much does the price of a house increase if you add a room of 140 square feet
+
+```{r}
+(140*coef(lmhp)[2]+coef(lmhp)[3])-(140*coef(lmhp)[2]+coef(lmhp)[3]*2)
+(140*coef(lmhp)[2]+coef(lmhp)[3])
+
+```
+
+For 1) interpretation: 15,198 dollars. Same result as part (ii) Because a bedroom is added keeping the size of the house constant.
+For 2) interpretation: 33,179 dollars. The effect is larger because a bedroom is added and the size of the house is increasing as well. 
+
+## (iv) 
+
+63.2% of the variation in price is explained by square footage and number of bedrooms.
+
+### (v) 
+
+```{r}
+fit1<-(coef(lmhp)[1])+(2438*coef(lmhp)[2])+(4*coef(lmhp)[3])
+fit1
+```
+The predicted selling price for this house is $354,605 dollars
+
+### (vi)
+
+```{r}
+#head(hprice1)
+300000-(fit1*1000)
+```
+
+The residual is -54,605 dollars. As we got a negative value it means that the buyer underpaid for the house.
+
+## Question 5 
+
+### (i)
+
+```{r}
+data("discrim")
+#head(discrim)
+mean(discrim$prpblck,na.rm = T)
+mean(discrim$income,na.rm = T)
+sd(discrim$prpblck,na.rm = T)
+sd(discrim$income,na.rm = T)
+```
+
+The average of prpblck is **`r mean(discrim$prpblck,na.rm = T)`**, and the average of income is **`r mean(discrim$income,na.rm = T)`**. Their respectively standards deviations are: **`r sd(discrim$prpblck,na.rm = T)`** and **`r sd(discrim$income,na.rm = T)`**. For prpblck the unit of measurement is proportion, for income the unit of measurement os the median family income is in dollars. 
+
+### (ii) 
+
+```{r}
+lmps<-lm(psoda~prpblck+income,discrim)
+stargazer(lmps,type = "text")
+mean(discrim$psoda,na.rm = T)
+```
+$$\widehat{psoda}=0.956+0.115\,prpblck$$
+$$n=401, R^2=0.064$$
+The coefficient of prpblck implies that an 1 unit increase in proportion (or a 100% point increase) predicts - on average and holding everything else constant - an increase of 0.115 dollars on medium soda price. For getting a more realistic result we have to divide both sides by 100. Then we get that an 1% point increase in proportion black predicts 0.00115 dollars increase on soda price.
+The model suggests that if you compare a region with no black people with another when 100% are black people, soda price will be 0.115 dollars higher. As the soda price mean sample is around 1 dollar an extreme comparision regarding discrimination says that black people regions tends to pay around 10% higher on soda. Looking for this extreme comparison it seems seems economically significant.  As these extremes are very unlikely and regions only have predominance, that doesn’t seem likely to be meaningful to any individual’s economic decision making, although it might be meaningful to manufacturers or large retailers.
+
+### (iii)
+
+```{r}
+lmps2<-lm(psoda~prpblck,discrim)
+stargazer(lmps2,type = "text")
+
+```
+
+The OLS estimated model is: $$\widehat{psoda} = 1.037 + 0.065\,prpblck$$
+So the simple regression model provides an estimate from psoda on prpblck that suggests a smaller discrimination effect than controlling by income. The coefficient drops from 0.115 to 0.065.
+
+### (iv) 
+
+```{r}
+lmps3<-lm(log(psoda)~prpblck+log(income),discrim)
+stargazer(lmps3,type = "text")
+```
+
+An increase in prpblck by 1 unit corresponds by a increase of 100% points, which relates to an increase in 0.122 on log(psoda), wich means a 12.2% increase psoda. An increase by 0.1 unit corresponds by an increase in 10% points. An increase in 0.2 unit corresponds to an increase in 20% points, which relates to an increase of **`r 0.2*coef(lmps3)[2]*100`**% on psoda.
+
+```{r}
+0.2*coef(lmps3)[2]*100
+```
+
+### (v)
+
+```{r}
+lmps4<-lm(log(psoda)~prpblck+log(income)+prppov,discrim)
+stargazer(lmps4,type = "text")
+```
+
+$\widehat{\beta_\text{prpblack}}$ get smaller.
+
+### (vi)
+```{r}
+cor(discrim$lincome,discrim$prppov,use="complete.obs")
+```
+
+There is a strong negative correlation between log of median family income and proportion in poverty. This was expected because regions with high proportion in poverty tends to be associated with low median family income regions and vice-versa. As poverty is usually measured by income level, the two variables are justified to be highly correlated.
+
+### (vii)
+The two variables in the model contributes to increase multicolinearity, as we don`t have perfect multicolinearity, the two variables are acceptable. The decision to rule out one of these variables in the model implies a trade-off: If we keep both variables the variance of the estimators will be higher, however if we rule out one of them the estimator can become biased.
